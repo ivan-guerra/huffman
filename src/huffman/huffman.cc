@@ -2,10 +2,13 @@
 
 #include <filesystem>
 #include <fstream>
+#include <queue>
 #include <string>
 #include <vector>
 
 namespace huffman {
+
+const int HuffmanCoding::kInternalNode = 256;
 
 RetCode HuffmanCoding::CountCharFrequencies(const std::string& infile) {
     auto IsAscii = [](char c) {
@@ -29,6 +32,39 @@ RetCode HuffmanCoding::CountCharFrequencies(const std::string& infile) {
     return RetCode::kSuccess;
 }
 
+void HuffmanCoding::BuildEncodingTree() {
+    auto HuffmanNodePtrGreater = [](const HuffmanNodePtr a,
+                                    const HuffmanNodePtr b) {
+        return (a->count > b->count);
+    };
+    std::priority_queue<HuffmanNodePtr, std::vector<HuffmanNodePtr>,
+                        decltype(HuffmanNodePtrGreater)>
+        encoding_queue;
+
+    /* load the initial nodes with their chars and freqs */
+    for (const auto& [character, frequency] : char_freqs_) {
+        encoding_queue.push(
+            std::make_shared<HuffmanNode>(character, frequency));
+    }
+
+    /* follow the algorithm described in
+     * https://en.wikipedia.org/wiki/Huffman_coding under the "Compression"
+     * section */
+    while (encoding_queue.size() != 1) {
+        HuffmanNodePtr first = encoding_queue.top();
+        encoding_queue.pop();
+        HuffmanNodePtr second = encoding_queue.top();
+        encoding_queue.pop();
+
+        HuffmanNodePtr new_node = std::make_shared<HuffmanNode>(
+            kInternalNode, first->count + second->count, first, second);
+
+        encoding_queue.push(new_node);
+    }
+
+    encoding_root_ = encoding_queue.top(); /* save off the root of the tree */
+}
+
 RetCode HuffmanCoding::Encode(const std::string& unarchived_filepath,
                               const std::string& archived_filepath) {
     (void)archived_filepath;
@@ -44,6 +80,8 @@ RetCode HuffmanCoding::Encode(const std::string& unarchived_filepath,
     if (RetCode::kSuccess != rc) {
         return rc;
     }
+
+    BuildEncodingTree(); /* construct the huffman code tree */
 
     return RetCode::kSuccess;
 }
