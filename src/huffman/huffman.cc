@@ -65,6 +65,16 @@ void HuffmanCoding::BuildEncodingTree() {
     encoding_root_ = encoding_queue.top(); /* save off the root of the tree */
 }
 
+void HuffmanCoding::BuildEncodingMap(HuffmanNodePtr root,
+                                     std::string encoding) {
+    if (root->character != kInternalNode) {
+        encodings_[static_cast<char>(root->character)] = encoding;
+        return;
+    }
+    BuildEncodingMap(root->zero, encoding + "0");
+    BuildEncodingMap(root->one, encoding + "1");
+}
+
 RetCode HuffmanCoding::Encode(const std::string& unarchived_filepath,
                               const std::string& archived_filepath) {
     (void)archived_filepath;
@@ -81,7 +91,8 @@ RetCode HuffmanCoding::Encode(const std::string& unarchived_filepath,
         return rc;
     }
 
-    BuildEncodingTree(); /* construct the huffman code tree */
+    BuildEncodingTree();                  /* construct the huffman code tree */
+    BuildEncodingMap(encoding_root_, ""); /* generate char to code map */
 
     return RetCode::kSuccess;
 }

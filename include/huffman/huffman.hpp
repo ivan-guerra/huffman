@@ -31,6 +31,7 @@ class HuffmanCoding {
    private:
     struct HuffmanNode; /* forward decl the HuffmanNode type */
     using CharFreqMap = std::unordered_map<char, int>;
+    using EncodingMap = std::unordered_map<char, std::string>;
     using HuffmanNodePtr = std::shared_ptr<HuffmanNode>;
 
     static const int kInternalNode; /* special code for internal huffman node */
@@ -48,8 +49,10 @@ class HuffmanCoding {
 
     RetCode CountCharFrequencies(const std::string& filepath);
     void BuildEncodingTree();
+    void BuildEncodingMap(HuffmanNodePtr root, std::string encoding);
 
     CharFreqMap char_freqs_;
+    EncodingMap encodings_;
     HuffmanNodePtr encoding_root_;
 };
 
