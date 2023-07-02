@@ -1,6 +1,8 @@
 #ifndef HUFFMAN_H_
 #define HUFFMAN_H_
 
+#include <cstdint>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -23,14 +25,14 @@ class HuffmanCoding {
     HuffmanCoding(HuffmanCoding&&) = default;
     HuffmanCoding& operator=(HuffmanCoding&&) = default;
 
-    RetCode Encode(const std::string& unarchived_filepath,
-                   const std::string& archived_filepath);
-    RetCode Decode(const std::string& archived_filepath,
-                   const std::string& unarchived_filepath);
+    RetCode Compress(const std::string& unarchived_filepath,
+                     const std::string& archived_filepath);
+    RetCode Decompress(const std::string& archived_filepath,
+                       const std::string& unarchived_filepath);
 
    private:
     struct HuffmanNode; /* forward decl the HuffmanNode type */
-    using CharFreqMap = std::unordered_map<char, int>;
+    using CharFreqMap = std::unordered_map<char, uint32_t>;
     using EncodingMap = std::unordered_map<char, std::string>;
     using HuffmanNodePtr = std::shared_ptr<HuffmanNode>;
 
@@ -38,7 +40,7 @@ class HuffmanCoding {
 
     struct HuffmanNode {
         int character;
-        int count;
+        uint32_t count;
         HuffmanNodePtr zero;
         HuffmanNodePtr one;
 
@@ -50,6 +52,8 @@ class HuffmanCoding {
     RetCode CountCharFrequencies(const std::string& filepath);
     void BuildEncodingTree();
     void BuildEncodingMap(HuffmanNodePtr root, std::string encoding);
+    void WriteHeader(std::ofstream& os) const;
+    void Encode(const std::string& infile, const std::string& outfile) const;
 
     CharFreqMap char_freqs_;
     EncodingMap encodings_;

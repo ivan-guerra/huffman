@@ -75,10 +75,72 @@ void HuffmanCoding::BuildEncodingMap(HuffmanNodePtr root,
     BuildEncodingMap(root->one, encoding + "1");
 }
 
-RetCode HuffmanCoding::Encode(const std::string& unarchived_filepath,
-                              const std::string& archived_filepath) {
-    (void)archived_filepath;
+void HuffmanCoding::WriteHeader(std::ofstream& os) const {
+    std::size_t num_chars = char_freqs_.size();
+    os.write(reinterpret_cast<char*>(&num_chars), sizeof(num_chars));
+    for (const auto& [character, frequency] : char_freqs_) {
+        os.write(&character, sizeof(character));
 
+        uint32_t freq_copy = frequency;
+        os.write(reinterpret_cast<char*>(&freq_copy), sizeof(freq_copy));
+    }
+}
+
+void HuffmanCoding::Encode(const std::string& infile,
+                           const std::string& outfile) const {
+    const std::size_t kBytesPerRead = 4096; /* size of one page */
+    std::vector<char> buffer(kBytesPerRead, '\0');
+
+    /* handle to read uncompressed data one page at a time */
+    std::ifstream infile_stream(infile, std::ios::in | std::ios::binary);
+    /* handle to write the encoding map and data */
+    std::ofstream outfile_stream(outfile, std::ios::out | std::ios::binary);
+
+    /* controls for writing compressed data byte by byte */
+    const int kBitsPerByte = 8;
+    uint8_t currbyte = 0;
+    int bitcount = 0;
+
+    /* write compressed files' header first */
+    WriteHeader(outfile_stream);
+
+    while (infile_stream) {
+        /* read uncompressed data */
+        infile_stream.read(buffer.data(), buffer.size());
+
+        /* encode the individual ascii chars in the buffer */
+        for (std::streamsize i = 0; i < infile_stream.gcount(); ++i) {
+            /* since the smallest unit we can write to a file is a byte not a
+             * bit, the code below constructs a byte from the bits in an
+             * encoding and then writes the byte to the output file */
+            for (const char& bit : encodings_.at(buffer[i])) {
+                uint8_t ibit = (bit == '1') ? 1 : 0;
+                currbyte = (currbyte << 1) | ibit;
+                bitcount++;
+                if (bitcount == kBitsPerByte) {
+                    outfile_stream.write(reinterpret_cast<char*>(&currbyte),
+                                         sizeof(currbyte));
+                    currbyte = 0;
+                    bitcount = 0;
+                }
+            }
+        }
+    }
+
+    if (bitcount) {
+        /* the very last character didn't land on the byte boundary so we
+        need to pad it with zeroes before writing it out to file */
+        while (bitcount != kBitsPerByte) {
+            currbyte <<= 1;
+            bitcount++;
+        }
+        outfile_stream.write(reinterpret_cast<char*>(&currbyte),
+                             sizeof(currbyte));
+    }
+}
+
+RetCode HuffmanCoding::Compress(const std::string& unarchived_filepath,
+                                const std::string& archived_filepath) {
     /* verify unarchived_filepath points to an existing file */
     std::filesystem::path unarchived_path(unarchived_filepath);
     if (!std::filesystem::exists(unarchived_filepath)) {
@@ -92,13 +154,14 @@ RetCode HuffmanCoding::Encode(const std::string& unarchived_filepath,
     }
 
     BuildEncodingTree();                  /* construct the huffman code tree */
-    BuildEncodingMap(encoding_root_, ""); /* generate char to code map */
+    BuildEncodingMap(encoding_root_, ""); /* construct char to encoding map */
+    Encode(unarchived_filepath, archived_filepath); /* compress the data */
 
     return RetCode::kSuccess;
 }
 
-RetCode HuffmanCoding::Decode(const std::string& archived_filepath,
-                              const std::string& unarchived_filepath) {
+RetCode HuffmanCoding::Decompress(const std::string& archived_filepath,
+                                  const std::string& unarchived_filepath) {
     (void)archived_filepath;
     (void)unarchived_filepath;
     return RetCode::kSuccess;
