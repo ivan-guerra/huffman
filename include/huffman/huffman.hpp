@@ -3,15 +3,17 @@
 
 #include <cstdint>
 #include <fstream>
+#include <map>
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include <vector>
 
 namespace huffman {
 
 enum class RetCode {
     kSuccess,
     kInvalidChar,
+    kInvalidFileFormat,
     kFileDoesNotExist,
 };
 
@@ -32,8 +34,8 @@ class HuffmanCoding {
 
    private:
     struct HuffmanNode; /* forward decl the HuffmanNode type */
-    using CharFreqMap = std::unordered_map<char, uint32_t>;
-    using EncodingMap = std::unordered_map<char, std::string>;
+    using CharFreqMap = std::map<char, uint32_t>;
+    using EncodingMap = std::map<char, std::string>;
     using HuffmanNodePtr = std::shared_ptr<HuffmanNode>;
 
     static const int kInternalNode; /* special code for internal huffman node */
@@ -52,8 +54,13 @@ class HuffmanCoding {
     RetCode CountCharFrequencies(const std::string& filepath);
     void BuildEncodingTree();
     void BuildEncodingMap(HuffmanNodePtr root, std::string encoding);
+
     void WriteHeader(std::ofstream& os) const;
     void Encode(const std::string& infile, const std::string& outfile) const;
+
+    RetCode ReadHeader(std::ifstream& is);
+    void DecodeStream(const std::vector<bool>& bitstream, std::ofstream& os);
+    RetCode Decode(const std::string& infile, const std::string& outfile);
 
     CharFreqMap char_freqs_;
     EncodingMap encodings_;

@@ -92,7 +92,7 @@ void HuffmanCoding::Encode(const std::string& infile,
     std::vector<char> buffer(kBytesPerRead, '\0');
 
     /* handle to read uncompressed data one page at a time */
-    std::ifstream infile_stream(infile, std::ios::in | std::ios::binary);
+    std::ifstream infile_stream(infile, std::ios::in);
     /* handle to write the encoding map and data */
     std::ofstream outfile_stream(outfile, std::ios::out | std::ios::binary);
 
@@ -139,6 +139,90 @@ void HuffmanCoding::Encode(const std::string& infile,
     }
 }
 
+RetCode HuffmanCoding::ReadHeader(std::ifstream& is) {
+    if (!is) { /* missing header content */
+        return RetCode::kInvalidFileFormat;
+    }
+
+    /* get the number of entries in the char frequency table */
+    std::size_t num_chars = 0;
+    is.read(reinterpret_cast<char*>(&num_chars), sizeof(num_chars));
+
+    char character = '\0';
+    uint32_t frequency = 0;
+    for (std::size_t i = 0; i < num_chars; ++i) {
+        if (!is) { /* header is missing one or more table entries */
+            return RetCode::kInvalidFileFormat;
+        }
+
+        /* load the key (char) and value (frequency) */
+        is.read(&character, sizeof(character));
+        is.read(reinterpret_cast<char*>(&frequency), sizeof(frequency));
+
+        char_freqs_[character] = frequency; /* add the new entry */
+    }
+    return RetCode::kSuccess;
+}
+
+void HuffmanCoding::DecodeStream(const std::vector<bool>& bitstream,
+                                 std::ofstream& os) {
+    /* take a tally of how many chars we need to decode */
+    uint32_t num_chars = 0;
+    for (const auto& kv : char_freqs_) {
+        num_chars += kv.second;
+    }
+
+    /* traverse the huffman tree decoding characters along the way */
+    uint32_t num_chars_decoded = 0;
+    std::size_t i = 0;
+    HuffmanNodePtr node = encoding_root_;
+    while ((i < bitstream.size()) && (num_chars_decoded != num_chars)) {
+        node = (bitstream[i]) ? node->one : node->zero;
+
+        if (!node->zero && !node->one) { /* reached a leaf node */
+            os << static_cast<char>(node->character);
+            node = encoding_root_;
+            num_chars_decoded++;
+        }
+        i++;
+    }
+}
+
+RetCode HuffmanCoding::Decode(const std::string& infile,
+                              const std::string& outfile) {
+    const std::size_t kBytesPerRead = 4096; /* size of one page */
+    std::vector<char> buffer(kBytesPerRead, '\0');
+
+    /* handle to read compressed data one page at a time */
+    std::ifstream infile_stream(infile, std::ios::in | std::ios::binary);
+    /* handle to write the uncompressed data */
+    std::ofstream outfile_stream(outfile);
+
+    RetCode retcode = ReadHeader(infile_stream); /* read in char frequencies */
+    if (RetCode::kSuccess != retcode) {          /* invalid header */
+        return retcode;
+    }
+    BuildEncodingTree(); /* construct the encoding tree */
+
+    /* build up a bit vector from the compressed files bianry content */
+    std::vector<bool> bitstream;
+    while (infile_stream) {
+        infile_stream.read(buffer.data(), buffer.size());
+        for (std::streamsize i = 0; i < infile_stream.gcount(); ++i) {
+            const int kNumBitsInByte = 8;
+            for (int j = 0; j < kNumBitsInByte; ++j) {
+                uint8_t mask = 1 << (kNumBitsInByte - j - 1);
+                bitstream.push_back(buffer[i] & mask);
+            }
+        }
+    }
+
+    /* reconstruct the message by traversing the huffman tree */
+    DecodeStream(bitstream, outfile_stream);
+
+    return retcode;
+}
+
 RetCode HuffmanCoding::Compress(const std::string& unarchived_filepath,
                                 const std::string& archived_filepath) {
     /* verify unarchived_filepath points to an existing file */
@@ -148,23 +232,27 @@ RetCode HuffmanCoding::Compress(const std::string& unarchived_filepath,
     }
 
     /* scan the unarchived file once to compute ascii char frequencies */
-    RetCode rc = CountCharFrequencies(unarchived_filepath);
-    if (RetCode::kSuccess != rc) {
-        return rc;
+    RetCode retcode = CountCharFrequencies(unarchived_filepath);
+    if (RetCode::kSuccess != retcode) {
+        return retcode;
     }
 
     BuildEncodingTree();                  /* construct the huffman code tree */
     BuildEncodingMap(encoding_root_, ""); /* construct char to encoding map */
     Encode(unarchived_filepath, archived_filepath); /* compress the data */
 
-    return RetCode::kSuccess;
+    return retcode;
 }
 
 RetCode HuffmanCoding::Decompress(const std::string& archived_filepath,
                                   const std::string& unarchived_filepath) {
-    (void)archived_filepath;
-    (void)unarchived_filepath;
-    return RetCode::kSuccess;
+    /* verify archived_filepath points to an existing file */
+    std::filesystem::path archived_path(archived_filepath);
+    if (!std::filesystem::exists(archived_filepath)) {
+        return RetCode::kFileDoesNotExist;
+    }
+
+    return Decode(archived_filepath, unarchived_filepath);
 }
 
 }  // namespace huffman
