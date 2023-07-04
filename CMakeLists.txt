@@ -7,4 +7,5 @@ set(HUFF_BIN_DIR "${CMAKE_SOURCE_DIR}/bin"
 set(HUFF_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include"
     CACHE STRING     "${PROJECT_NAME} include directory.")
 
+add_subdirectory(docs)
 add_subdirectory(src)
