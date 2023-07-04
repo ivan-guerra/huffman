@@ -63,6 +63,8 @@ class HuffmanCoding {
     struct HuffmanNode;
     using HuffmanNodePtr = std::shared_ptr<HuffmanNode>;
 
+    static const int
+        kHuffmanFmtIdentifier;      /**< Huffman compression magic number. */
     static const int kReadBuffSize; /**< Input file read buffer size. */
     static const int kInternalNode; /**< Char code for an internal node. */
 

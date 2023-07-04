@@ -9,6 +9,7 @@
 
 namespace huffman {
 
+const int HuffmanCoding::kHuffmanFmtIdentifier = 0xDEADBEEF;
 const int HuffmanCoding::kReadBuffSize = 1024;
 const int HuffmanCoding::kInternalNode = 256;
 
@@ -68,8 +69,10 @@ void HuffmanCoding::BuildEncodingMap(HuffmanNodePtr root,
 
 void HuffmanCoding::WriteHeader(std::ofstream& os) const {
     /* serialization of the header is as simple as it gets, we write the
-     * number of key/value pairs in the char_freqs_ map followed by each
-     * key/value itself */
+     * huffman format identifier (magic number), number of key/value pairs in
+     * the char_freqs_ map, and then each key/value itself */
+    os.write(reinterpret_cast<const char*>(&kHuffmanFmtIdentifier),
+             sizeof(kHuffmanFmtIdentifier));
     std::size_t num_chars = char_freqs_.size();
     os.write(reinterpret_cast<char*>(&num_chars), sizeof(num_chars));
     for (const auto& [character, frequency] : char_freqs_) {
@@ -125,7 +128,10 @@ void HuffmanCoding::Encode(const std::string& infile,
 }
 
 RetCode HuffmanCoding::ReadHeader(std::ifstream& is) {
-    if (!is) { /* missing header content */
+    /* check for the huffman format magic number */
+    int fmt_identifier = 0;
+    is.read(reinterpret_cast<char*>(&fmt_identifier), sizeof(fmt_identifier));
+    if (fmt_identifier != kHuffmanFmtIdentifier) {
         return RetCode::kInvalidFileFormat;
     }
 
