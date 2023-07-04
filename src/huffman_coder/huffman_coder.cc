@@ -29,7 +29,7 @@ RetCode HuffmanCoding::CountCharFrequencies(const std::string& infile) {
             char_freqs_[read_buffer_[i]]++; /* up the char's frequency */
         }
     }
-    return RetCode::kSuccess;
+    return (char_freqs_.empty()) ? RetCode::kEmptyFile : RetCode::kSuccess;
 }
 
 void HuffmanCoding::BuildEncodingTree() {

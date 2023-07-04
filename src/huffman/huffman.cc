@@ -70,6 +70,9 @@ int main(int argc, char** argv) {
         case huffman::RetCode::kFileDoesNotExist:
             PrintErrAndExit("IN_FILE does not exist");
             break;
+        case huffman::RetCode::kEmptyFile:
+            PrintErrAndExit("IN_FILE is empty, nothing to compress");
+            break;
     }
     return 0;
 }

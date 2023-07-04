@@ -16,6 +16,7 @@ enum class RetCode {
     kInvalidChar,       /**< A non-ASCII character was encountered. */
     kInvalidFileFormat, /**< The compressed file format was incorrect. */
     kFileDoesNotExist,  /**< The specified file does not exist. */
+    kEmptyFile,         /**< The specified file is empty. */
 };
 
 /**
