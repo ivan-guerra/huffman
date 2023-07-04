@@ -10,7 +10,7 @@
 
 namespace huffman {
 
-/** Success and failure return codes. */
+/** @brief Success and failure return codes. */
 enum class RetCode {
     kSuccess,           /**< The operation succeeded. */
     kInvalidChar,       /**< A non-ASCII character was encountered. */
@@ -20,9 +20,9 @@ enum class RetCode {
 };
 
 /**
- * Compress/decompress data using the huffman coding technique.
+ * @brief Compress/decompress data using the huffman coding technique.
  *
- * HuffmanCoding implements the algorithms described in the
+ * @details HuffmanCoding implements the algorithms described in the
  * <a href="https://en.wikipedia.org/wiki/Huffman_coding">Huffman Coding</a>
  * Wikipedia page.
  */
@@ -39,24 +39,24 @@ class HuffmanCoding {
     /**
      * Compress the contents of an ASCII data file.
      *
-     * @param [in] unarchived_filepath Path to the file to be compressed.
-     * @param [in] archived_filepath   Path to file that will contain compressed
-     *                                 data.
+     * @param [in] uncompressed_filepath Path to the file to be compressed.
+     * @param [in] compressed_filepath   Path to file that will contain
+     *                                   compressed data.
      * @returns See #RetCode.
      */
-    RetCode Compress(const std::string& unarchived_filepath,
-                     const std::string& archived_filepath);
+    RetCode Compress(const std::string& uncompressed_filepath,
+                     const std::string& compressed_filepath);
 
     /**
      * Decompress an archive file previously compressed via Compress().
      *
-     * @param [in] archived_filepath   Path to a huffman encoded archive file.
-     * @param [in] unarchived_filepath Path to file that will contain
-     *                                 uncompressed data.
+     * @param [in] compressed_filepath   Path to a huffman encoded archive file.
+     * @param [in] uncompressed_filepath Path to file that will contain
+     *                                   uncompressed data.
      * @returns See #RetCode.
      */
-    RetCode Decompress(const std::string& archived_filepath,
-                       const std::string& unarchived_filepath);
+    RetCode Decompress(const std::string& compressed_filepath,
+                       const std::string& uncompressed_filepath);
 
    private:
     using CharFreqMap = std::map<char, uint32_t>;

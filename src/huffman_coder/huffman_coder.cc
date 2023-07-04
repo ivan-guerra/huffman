@@ -211,36 +211,36 @@ RetCode HuffmanCoding::Decode(const std::string& infile,
     return retcode;
 }
 
-RetCode HuffmanCoding::Compress(const std::string& unarchived_filepath,
-                                const std::string& archived_filepath) {
-    /* verify unarchived_filepath points to an existing file */
-    std::filesystem::path unarchived_path(unarchived_filepath);
-    if (!std::filesystem::exists(unarchived_filepath)) {
+RetCode HuffmanCoding::Compress(const std::string& uncompressed_filepath,
+                                const std::string& compressed_filepath) {
+    /* verify uncompressed_filepath points to an existing file */
+    std::filesystem::path uncompressed_path(uncompressed_filepath);
+    if (!std::filesystem::exists(uncompressed_filepath)) {
         return RetCode::kFileDoesNotExist;
     }
 
-    /* scan the unarchived file once to compute ascii char frequencies */
-    RetCode retcode = CountCharFrequencies(unarchived_filepath);
+    /* scan the uncompressed file once to compute ascii char frequencies */
+    RetCode retcode = CountCharFrequencies(uncompressed_filepath);
     if (RetCode::kSuccess != retcode) {
         return retcode;
     }
 
     BuildEncodingTree();                  /* construct the huffman code tree */
     BuildEncodingMap(encoding_root_, ""); /* construct char to bit string map */
-    Encode(unarchived_filepath, archived_filepath); /* compress the data */
+    Encode(uncompressed_filepath, compressed_filepath); /* compress the data */
 
     return retcode;
 }
 
-RetCode HuffmanCoding::Decompress(const std::string& archived_filepath,
-                                  const std::string& unarchived_filepath) {
-    /* verify archived_filepath points to an existing file */
-    std::filesystem::path archived_path(archived_filepath);
-    if (!std::filesystem::exists(archived_filepath)) {
+RetCode HuffmanCoding::Decompress(const std::string& compressed_filepath,
+                                  const std::string& uncompressed_filepath) {
+    /* verify compressed_filepath points to an existing file */
+    std::filesystem::path compressed_path(compressed_filepath);
+    if (!std::filesystem::exists(compressed_filepath)) {
         return RetCode::kFileDoesNotExist;
     }
 
-    return Decode(archived_filepath, unarchived_filepath);
+    return Decode(compressed_filepath, uncompressed_filepath);
 }
 
 }  // namespace huffman
