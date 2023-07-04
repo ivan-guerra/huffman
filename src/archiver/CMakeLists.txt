@@ -10,6 +10,10 @@ target_sources(${PROJECT_NAME}
     PRIVATE archiver.cc
 )
 
+target_link_libraries(${PROJECT_NAME}
+    PRIVATE huffman_archiver
+)
+
 install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION ${HUFF_BIN_DIR}
 )
