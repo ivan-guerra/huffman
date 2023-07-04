@@ -1,15 +1,19 @@
 cmake_minimum_required(VERSION 3.13...3.25)
 
-project(huffman_archiver DESCRIPTION "huffman coding"
-                         LANGUAGES   CXX
+project(huffman DESCRIPTION "huffman compression/decompression utility"
+                LANGUAGES   CXX
 )
 
-add_library(${PROJECT_NAME} STATIC)
+add_executable(${PROJECT_NAME})
 
 target_sources(${PROJECT_NAME}
     PRIVATE huffman.cc
 )
 
-target_include_directories(${PROJECT_NAME}
-    PUBLIC ${HUFF_INCLUDE_DIR}
+target_link_libraries(${PROJECT_NAME}
+    PRIVATE huffman_coder
+)
+
+install(TARGETS ${PROJECT_NAME}
+    RUNTIME DESTINATION ${HUFF_BIN_DIR}
 )

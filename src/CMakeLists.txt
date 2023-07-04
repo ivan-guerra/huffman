@@ -35,5 +35,5 @@ add_link_options(
     "$<$<CONFIG:Debug>:-fsanitize=address>"
 )
 
-add_subdirectory(archiver)
 add_subdirectory(huffman)
+add_subdirectory(huffman_coder)
