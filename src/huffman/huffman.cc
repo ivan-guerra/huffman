@@ -1,13 +1,15 @@
 #include "huffman/huffman.hpp"
 
+#include <cstdint>
 #include <filesystem>
-#include <fstream>
+#include <memory>
 #include <queue>
 #include <string>
 #include <vector>
 
 namespace huffman {
 
+const int HuffmanCoding::kReadBuffSize = 1024;
 const int HuffmanCoding::kInternalNode = 256;
 
 RetCode HuffmanCoding::CountCharFrequencies(const std::string& infile) {
@@ -15,18 +17,16 @@ RetCode HuffmanCoding::CountCharFrequencies(const std::string& infile) {
         return !(static_cast<unsigned char>(c) > 127);
     };
 
+    /* read the input file in kReadBuffSize sized chunks */
     std::ifstream infile_stream(infile, std::ios::binary);
-    const std::size_t kBytesPerRead = 4096; /* size of one page */
-    std::vector<char> buffer(kBytesPerRead, '\0');
-
-    /* read the input file in page sized chunks */
     while (infile_stream) {
-        infile_stream.read(buffer.data(), buffer.size());
+        infile_stream.read(read_buffer_.data(), read_buffer_.size());
         for (std::streamsize i = 0; i < infile_stream.gcount(); ++i) {
-            if (!IsAscii(buffer[i])) { /* we don't allow non-ascii characters */
+            if (!IsAscii(read_buffer_[i])) { /* we don't allow non-ascii
+                                                characters */
                 return RetCode::kInvalidChar;
             }
-            char_freqs_[buffer[i]]++; /* up the char's frequency */
+            char_freqs_[read_buffer_[i]]++; /* up the char's frequency */
         }
     }
     return RetCode::kSuccess;
@@ -61,59 +61,52 @@ void HuffmanCoding::BuildEncodingTree() {
 
         encoding_queue.push(new_node);
     }
-
     encoding_root_ = encoding_queue.top(); /* save off the root of the tree */
 }
 
 void HuffmanCoding::BuildEncodingMap(HuffmanNodePtr root,
                                      std::string encoding) {
-    if (root->character != kInternalNode) {
+    if (root->character != kInternalNode) { /* reached a leaf node */
         encodings_[static_cast<char>(root->character)] = encoding;
         return;
     }
-    BuildEncodingMap(root->zero, encoding + "0");
-    BuildEncodingMap(root->one, encoding + "1");
+    BuildEncodingMap(root->zero, encoding + "0"); /* recurse into ltree */
+    BuildEncodingMap(root->one, encoding + "1");  /* recurse into rtree */
 }
 
 void HuffmanCoding::WriteHeader(std::ofstream& os) const {
+    /* serialization of the header is as simple as it gets, we write the
+     * number of key/value pairs in the char_freqs_ map followed by each
+     * key/value itself */
     std::size_t num_chars = char_freqs_.size();
     os.write(reinterpret_cast<char*>(&num_chars), sizeof(num_chars));
     for (const auto& [character, frequency] : char_freqs_) {
         os.write(&character, sizeof(character));
-
-        uint32_t freq_copy = frequency;
-        os.write(reinterpret_cast<char*>(&freq_copy), sizeof(freq_copy));
+        os.write(reinterpret_cast<const char*>(&frequency), sizeof(frequency));
     }
 }
 
 void HuffmanCoding::Encode(const std::string& infile,
-                           const std::string& outfile) const {
-    const std::size_t kBytesPerRead = 4096; /* size of one page */
-    std::vector<char> buffer(kBytesPerRead, '\0');
-
-    /* handle to read uncompressed data one page at a time */
-    std::ifstream infile_stream(infile, std::ios::in);
-    /* handle to write the encoding map and data */
-    std::ofstream outfile_stream(outfile, std::ios::out | std::ios::binary);
-
+                           const std::string& outfile) {
     /* controls for writing compressed data byte by byte */
     const int kBitsPerByte = 8;
     uint8_t currbyte = 0;
     int bitcount = 0;
 
-    /* write compressed files' header first */
-    WriteHeader(outfile_stream);
+    std::ofstream outfile_stream(outfile, std::ios::out | std::ios::binary);
+    WriteHeader(outfile_stream); /* write the compressed files' header first */
 
+    std::ifstream infile_stream(infile, std::ios::in);
     while (infile_stream) {
         /* read uncompressed data */
-        infile_stream.read(buffer.data(), buffer.size());
+        infile_stream.read(read_buffer_.data(), read_buffer_.size());
 
         /* encode the individual ascii chars in the buffer */
         for (std::streamsize i = 0; i < infile_stream.gcount(); ++i) {
             /* since the smallest unit we can write to a file is a byte not a
              * bit, the code below constructs a byte from the bits in an
              * encoding and then writes the byte to the output file */
-            for (const char& bit : encodings_.at(buffer[i])) {
+            for (const char& bit : encodings_.at(read_buffer_[i])) {
                 uint8_t ibit = (bit == '1') ? 1 : 0;
                 currbyte = (currbyte << 1) | ibit;
                 bitcount++;
@@ -127,9 +120,9 @@ void HuffmanCoding::Encode(const std::string& infile,
         }
     }
 
-    if (bitcount) {
-        /* the very last character didn't land on the byte boundary so we
-        need to pad it with zeroes before writing it out to file */
+    if (bitcount) { /* the very last character didn't land on the byte boundary
+                       so we need to pad it with zeroes before writing it out to
+                       file */
         while (bitcount != kBitsPerByte) {
             currbyte <<= 1;
             bitcount++;
@@ -172,10 +165,10 @@ void HuffmanCoding::DecodeStream(const std::vector<bool>& bitstream,
         num_chars += kv.second;
     }
 
-    /* traverse the huffman tree decoding characters along the way */
+    /* repeatedly traverse the huffman tree decoding characters along the way */
     uint32_t num_chars_decoded = 0;
-    std::size_t i = 0;
     HuffmanNodePtr node = encoding_root_;
+    std::size_t i = 0;
     while ((i < bitstream.size()) && (num_chars_decoded != num_chars)) {
         node = (bitstream[i]) ? node->one : node->zero;
 
@@ -190,34 +183,29 @@ void HuffmanCoding::DecodeStream(const std::vector<bool>& bitstream,
 
 RetCode HuffmanCoding::Decode(const std::string& infile,
                               const std::string& outfile) {
-    const std::size_t kBytesPerRead = 4096; /* size of one page */
-    std::vector<char> buffer(kBytesPerRead, '\0');
-
-    /* handle to read compressed data one page at a time */
     std::ifstream infile_stream(infile, std::ios::in | std::ios::binary);
-    /* handle to write the uncompressed data */
-    std::ofstream outfile_stream(outfile);
-
     RetCode retcode = ReadHeader(infile_stream); /* read in char frequencies */
     if (RetCode::kSuccess != retcode) {          /* invalid header */
         return retcode;
     }
+
     BuildEncodingTree(); /* construct the encoding tree */
 
-    /* build up a bit vector from the compressed files bianry content */
+    /* build up a bit vector from the compressed file's binary content */
+    const int kNumBitsInByte = 8;
     std::vector<bool> bitstream;
     while (infile_stream) {
-        infile_stream.read(buffer.data(), buffer.size());
+        infile_stream.read(read_buffer_.data(), read_buffer_.size());
         for (std::streamsize i = 0; i < infile_stream.gcount(); ++i) {
-            const int kNumBitsInByte = 8;
             for (int j = 0; j < kNumBitsInByte; ++j) {
                 uint8_t mask = 1 << (kNumBitsInByte - j - 1);
-                bitstream.push_back(buffer[i] & mask);
+                bitstream.push_back(read_buffer_[i] & mask);
             }
         }
     }
 
     /* reconstruct the message by traversing the huffman tree */
+    std::ofstream outfile_stream(outfile);
     DecodeStream(bitstream, outfile_stream);
 
     return retcode;
@@ -238,7 +226,7 @@ RetCode HuffmanCoding::Compress(const std::string& unarchived_filepath,
     }
 
     BuildEncodingTree();                  /* construct the huffman code tree */
-    BuildEncodingMap(encoding_root_, ""); /* construct char to encoding map */
+    BuildEncodingMap(encoding_root_, ""); /* construct char to bit string map */
     Encode(unarchived_filepath, archived_filepath); /* compress the data */
 
     return retcode;
