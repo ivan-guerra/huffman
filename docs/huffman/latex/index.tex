@@ -1,0 +1,49 @@
+\label{index_md__home_ieg_dev_huffman_README}%
+\Hypertarget{index_md__home_ieg_dev_huffman_README}%
+ This project implements a command line utility that compresses and decompresses any kind of file using the \href{https://en.wikipedia.org/wiki/Huffman_coding}{\texttt{ Huffman Coding}} technique.\hypertarget{index_autotoc_md1}{}\doxysubsection{Building}\label{index_autotoc_md1}
+To build the project locally, you will need the following libraries and tools installed\+:
+
+
+\begin{DoxyItemize}
+\item CMake3.\+13+
+\item C++ compiler supporting C++20 features
+\end{DoxyItemize}
+
+To build the project, change directory to the {\ttfamily scripts/} directory and run {\ttfamily build.\+sh}
+
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{./build.sh}
+
+\end{DoxyCode}
+ \begin{quote}
+{\bfseries{Note}} {\ttfamily build.\+sh} supports additional option flags for building the project docs (requires \href{https://www.doxygen.nl/}{\texttt{ Doxygen}}) and unit tests. Run {\ttfamily build.\+sh -\/h} to see all the options. \end{quote}
+After a successful build, you will find the binary installed to {\ttfamily huffman/bin/huffman}.\hypertarget{index_autotoc_md2}{}\doxysubsection{Program Usage}\label{index_autotoc_md2}
+The {\ttfamily huffman} tool interprets three commands\+: {\ttfamily help}, {\ttfamily compress}, and {\ttfamily decompress}.
+
+The {\ttfamily help} command prints program usage info\+:
+
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{huffman help}
+
+\end{DoxyCode}
+
+
+The {\ttfamily compress} command takes two arguments where the first is the file to be compressed and the second argument is the name of the output file\+:
+
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{huffman compress foo.txt foo.huf}
+
+\end{DoxyCode}
+
+
+The {\ttfamily decompress} command takes two arguments where the first argument is a file previously compressed by the {\ttfamily huffman} utility and the second argument is the name of the decompressed file\+:
+
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{huffman decompress foo.huf foo.txt}
+
+\end{DoxyCode}
+ 

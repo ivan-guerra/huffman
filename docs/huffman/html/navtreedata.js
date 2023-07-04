@@ -25,6 +25,7 @@
 var NAVTREE =
 [
   [ "huffman", "index.html", [
+    [ "Huffman Coding", "index.html", null ],
     [ "Namespaces", "namespaces.html", [
       [ "Namespace List", "namespaces.html", "namespaces_dup" ],
       [ "Namespace Members", "namespacemembers.html", [

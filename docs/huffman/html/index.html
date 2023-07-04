@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.5"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>huffman: Main Page</title>
+<title>huffman: Huffman Coding</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript">var page_layout=1;</script>
 <script type="text/javascript" src="jquery.js"></script>
@@ -34,7 +34,7 @@
   <td id="projectalign">
    <div id="projectname">huffman
    </div>
-   <div id="projectbrief">ASCII file compression</div>
+   <div id="projectbrief">huffman file compression</div>
   </td>
  </tr>
    <tr><td colspan="2">        <div id="MSearchBox" class="MSearchBoxInactive">
@@ -96,24 +96,34 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
 </div>
 </div>
 
-<div class="header">
-  <div class="headertitle"><div class="title">huffman Documentation</div></div>
+<div><div class="header">
+  <div class="headertitle"><div class="title">Huffman Coding </div></div>
 </div><!--header-->
 <div class="contents">
-<ul><li><a href="index.html"><span>Main&#160;Page</span></a>
-</li><li><a href="namespaces.html"><span>Namespaces</span></a>
-<ul><li><a href="namespaces.html"><span>Namespace&#160;List</span></a>
-</li><li><a href="namespacemembers.html"><span>Namespace&#160;Members</span></a>
-</li></ul>
-</li><li><a href="annotated.html"><span>Classes</span></a>
-<ul><li><a href="annotated.html"><span>Class&#160;List</span></a>
-</li><li><a href="classes.html"><span>Class&#160;Index</span></a>
-</li><li><a href="functions.html"><span>Class&#160;Members</span></a>
-</li></ul>
-</li><li><a href="files.html"><span>Files</span></a>
-<ul><li><a href="files.html"><span>File&#160;List</span></a>
-</li></ul>
-</li></ul>
+<div class="textblock"><p ><a class="anchor" id="md__home_ieg_dev_huffman_README"></a> This project implements a command line utility that compresses and decompresses any kind of file using the <a href="https://en.wikipedia.org/wiki/Huffman_coding">Huffman Coding</a> technique.</p>
+<h2><a class="anchor" id="autotoc_md1"></a>
+Building</h2>
+<p >To build the project locally, you will need the following libraries and tools installed:</p>
+<ul>
+<li>CMake3.13+</li>
+<li>C++ compiler supporting C++20 features</li>
+</ul>
+<p >To build the project, change directory to the <code>scripts/</code> directory and run <code>build.sh</code></p>
+<div class="fragment"><div class="line">./build.sh</div>
+</div><!-- fragment --> <blockquote class="doxtable">
+<p >&zwj;<b>Note</b> <code>build.sh</code> supports additional option flags for building the project docs (requires <a href="https://www.doxygen.nl/">Doxygen</a>) and unit tests. Run <code>build.sh -h</code> to see all the options. </p>
+</blockquote>
+<p>After a successful build, you will find the binary installed to <code>huffman/bin/huffman</code>.</p>
+<h2><a class="anchor" id="autotoc_md2"></a>
+Program Usage</h2>
+<p >The <code>huffman</code> tool interprets three commands: <code>help</code>, <code>compress</code>, and <code>decompress</code>.</p>
+<p >The <code>help</code> command prints program usage info:</p>
+<div class="fragment"><div class="line">huffman help</div>
+</div><!-- fragment --><p >The <code>compress</code> command takes two arguments where the first is the file to be compressed and the second argument is the name of the output file:</p>
+<div class="fragment"><div class="line">huffman compress foo.txt foo.huf</div>
+</div><!-- fragment --><p >The <code>decompress</code> command takes two arguments where the first argument is a file previously compressed by the <code>huffman</code> utility and the second argument is the name of the decompressed file:</p>
+<div class="fragment"><div class="line">huffman decompress foo.huf foo.txt</div>
+</div><!-- fragment --> </div></div><!-- PageDoc -->
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

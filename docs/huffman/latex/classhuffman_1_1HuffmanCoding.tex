@@ -2,6 +2,11 @@
 \label{classhuffman_1_1HuffmanCoding}\index{huffman::HuffmanCoding@{huffman::HuffmanCoding}}
 
 
+Compress/decompress data using the huffman coding technique.  
+
+
+
+
 {\ttfamily \#include $<$huffman\+\_\+coder.\+hpp$>$}
 
 \doxysubsection*{Public Member Functions}
@@ -19,14 +24,14 @@
 \item 
 \mbox{\hyperlink{classhuffman_1_1HuffmanCoding}{Huffman\+Coding}} \& \mbox{\hyperlink{classhuffman_1_1HuffmanCoding_a4431aeb9bad3317a95284bf301b2a6f7}{operator=}} (\mbox{\hyperlink{classhuffman_1_1HuffmanCoding}{Huffman\+Coding}} \&\&)=default
 \item 
-\mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173e}{Ret\+Code}} \mbox{\hyperlink{classhuffman_1_1HuffmanCoding_aacb2b05398856896f8b8754856334fd6}{Compress}} (const std\+::string \&unarchived\+\_\+filepath, const std\+::string \&archived\+\_\+filepath)
+\mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173e}{Ret\+Code}} \mbox{\hyperlink{classhuffman_1_1HuffmanCoding_a909a015b30efd0fc9c60d3548f8d8c40}{Compress}} (const std\+::string \&uncompressed\+\_\+filepath, const std\+::string \&compressed\+\_\+filepath)
 \item 
-\mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173e}{Ret\+Code}} \mbox{\hyperlink{classhuffman_1_1HuffmanCoding_a56d5cc3e58ca9256d46364d2298a4588}{Decompress}} (const std\+::string \&archived\+\_\+filepath, const std\+::string \&unarchived\+\_\+filepath)
+\mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173e}{Ret\+Code}} \mbox{\hyperlink{classhuffman_1_1HuffmanCoding_a7ed647aeb66886d7b7ac964b967ad041}{Decompress}} (const std\+::string \&compressed\+\_\+filepath, const std\+::string \&uncompressed\+\_\+filepath)
 \end{DoxyCompactItemize}
 
 
 \doxysubsection{Detailed Description}
-Compress/decompress data using the huffman coding technique.
+Compress/decompress data using the huffman coding technique. 
 
 \mbox{\hyperlink{classhuffman_1_1HuffmanCoding}{Huffman\+Coding}} implements the algorithms described in the \href{https://en.wikipedia.org/wiki/Huffman_coding}{\texttt{ Huffman Coding}} Wikipedia page. 
 
@@ -58,37 +63,37 @@ Compress/decompress data using the huffman coding technique.
 
 
 \doxysubsection{Member Function Documentation}
-\mbox{\Hypertarget{classhuffman_1_1HuffmanCoding_aacb2b05398856896f8b8754856334fd6}\label{classhuffman_1_1HuffmanCoding_aacb2b05398856896f8b8754856334fd6}} 
+\mbox{\Hypertarget{classhuffman_1_1HuffmanCoding_a909a015b30efd0fc9c60d3548f8d8c40}\label{classhuffman_1_1HuffmanCoding_a909a015b30efd0fc9c60d3548f8d8c40}} 
 \index{huffman::HuffmanCoding@{huffman::HuffmanCoding}!Compress@{Compress}}
 \index{Compress@{Compress}!huffman::HuffmanCoding@{huffman::HuffmanCoding}}
 \doxysubsubsection{\texorpdfstring{Compress()}{Compress()}}
-{\footnotesize\ttfamily \mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173e}{Ret\+Code}} huffman\+::\+Huffman\+Coding\+::\+Compress (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{unarchived\+\_\+filepath,  }\item[{const std\+::string \&}]{archived\+\_\+filepath }\end{DoxyParamCaption})}
+{\footnotesize\ttfamily \mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173e}{Ret\+Code}} huffman\+::\+Huffman\+Coding\+::\+Compress (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{uncompressed\+\_\+filepath,  }\item[{const std\+::string \&}]{compressed\+\_\+filepath }\end{DoxyParamCaption})}
 
-Compress the contents of an ASCII data file.
+Compress the contents of a data file.
 
 
 \begin{DoxyParams}[1]{Parameters}
-\mbox{\texttt{ in}}  & {\em unarchived\+\_\+filepath} & Path to the file to be compressed. \\
+\mbox{\texttt{ in}}  & {\em uncompressed\+\_\+filepath} & Path to the file to be compressed. \\
 \hline
-\mbox{\texttt{ in}}  & {\em archived\+\_\+filepath} & Path to file that will contain compressed data. \\
+\mbox{\texttt{ in}}  & {\em compressed\+\_\+filepath} & Path to file that will contain compressed data. \\
 \hline
 \end{DoxyParams}
 \begin{DoxyReturn}{Returns}
 See \mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173e}{Ret\+Code}}. 
 \end{DoxyReturn}
-\mbox{\Hypertarget{classhuffman_1_1HuffmanCoding_a56d5cc3e58ca9256d46364d2298a4588}\label{classhuffman_1_1HuffmanCoding_a56d5cc3e58ca9256d46364d2298a4588}} 
+\mbox{\Hypertarget{classhuffman_1_1HuffmanCoding_a7ed647aeb66886d7b7ac964b967ad041}\label{classhuffman_1_1HuffmanCoding_a7ed647aeb66886d7b7ac964b967ad041}} 
 \index{huffman::HuffmanCoding@{huffman::HuffmanCoding}!Decompress@{Decompress}}
 \index{Decompress@{Decompress}!huffman::HuffmanCoding@{huffman::HuffmanCoding}}
 \doxysubsubsection{\texorpdfstring{Decompress()}{Decompress()}}
-{\footnotesize\ttfamily \mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173e}{Ret\+Code}} huffman\+::\+Huffman\+Coding\+::\+Decompress (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{archived\+\_\+filepath,  }\item[{const std\+::string \&}]{unarchived\+\_\+filepath }\end{DoxyParamCaption})}
+{\footnotesize\ttfamily \mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173e}{Ret\+Code}} huffman\+::\+Huffman\+Coding\+::\+Decompress (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{compressed\+\_\+filepath,  }\item[{const std\+::string \&}]{uncompressed\+\_\+filepath }\end{DoxyParamCaption})}
 
-Decompress an archive file previously compressed via \mbox{\hyperlink{classhuffman_1_1HuffmanCoding_aacb2b05398856896f8b8754856334fd6}{Compress()}}.
+Decompress an archive file previously compressed via \mbox{\hyperlink{classhuffman_1_1HuffmanCoding_a909a015b30efd0fc9c60d3548f8d8c40}{Compress()}}.
 
 
 \begin{DoxyParams}[1]{Parameters}
-\mbox{\texttt{ in}}  & {\em archived\+\_\+filepath} & Path to a huffman encoded archive file. \\
+\mbox{\texttt{ in}}  & {\em compressed\+\_\+filepath} & Path to a huffman encoded archive file. \\
 \hline
-\mbox{\texttt{ in}}  & {\em unarchived\+\_\+filepath} & Path to file that will contain uncompressed data. \\
+\mbox{\texttt{ in}}  & {\em uncompressed\+\_\+filepath} & Path to file that will contain uncompressed data. \\
 \hline
 \end{DoxyParams}
 \begin{DoxyReturn}{Returns}

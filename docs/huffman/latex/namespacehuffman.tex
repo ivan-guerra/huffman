@@ -4,16 +4,16 @@
 \begin{DoxyCompactItemize}
 \item 
 class \mbox{\hyperlink{classhuffman_1_1HuffmanCoding}{Huffman\+Coding}}
-\end{DoxyCompactItemize}
+\begin{DoxyCompactList}\small\item\em Compress/decompress data using the huffman coding technique. \end{DoxyCompactList}\end{DoxyCompactItemize}
 \doxysubsection*{Enumerations}
 \begin{DoxyCompactItemize}
 \item 
 enum class \mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173e}{Ret\+Code}} \{ \mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173ea8c632159fa131f09d04f94e3cbcd8782}{k\+Success}}
-, \mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173eac57a710b53a5884c997cd67d7f1c1d65}{k\+Invalid\+Char}}
 , \mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173eaa3778470cd3fd71251db2104e42ca9cb}{k\+Invalid\+File\+Format}}
 , \mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173ea096e2b16eac00ee2337d12c4f1b54179}{k\+File\+Does\+Not\+Exist}}
+, \mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173eaf903278dec15d80d46c62e66c2b33c70}{k\+Empty\+File}}
  \}
-\end{DoxyCompactItemize}
+\begin{DoxyCompactList}\small\item\em Success and failure return codes. \end{DoxyCompactList}\end{DoxyCompactItemize}
 
 
 \doxysubsection{Enumeration Type Documentation}
@@ -23,13 +23,13 @@ enum class \mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173e}{
 \doxysubsubsection{\texorpdfstring{RetCode}{RetCode}}
 {\footnotesize\ttfamily enum class \mbox{\hyperlink{namespacehuffman_a84d7fe19a8794506278fd5deef39173e}{huffman\+::\+Ret\+Code}}\hspace{0.3cm}{\ttfamily [strong]}}
 
-Success and failure return codes. \begin{DoxyEnumFields}{Enumerator}
+
+
+Success and failure return codes. 
+
+\begin{DoxyEnumFields}{Enumerator}
 \raisebox{\heightof{T}}[0pt][0pt]{\index{kSuccess@{kSuccess}!huffman@{huffman}}\index{huffman@{huffman}!kSuccess@{kSuccess}}}\mbox{\Hypertarget{namespacehuffman_a84d7fe19a8794506278fd5deef39173ea8c632159fa131f09d04f94e3cbcd8782}\label{namespacehuffman_a84d7fe19a8794506278fd5deef39173ea8c632159fa131f09d04f94e3cbcd8782}} 
 k\+Success&The operation succeeded. \\
-\hline
-
-\raisebox{\heightof{T}}[0pt][0pt]{\index{kInvalidChar@{kInvalidChar}!huffman@{huffman}}\index{huffman@{huffman}!kInvalidChar@{kInvalidChar}}}\mbox{\Hypertarget{namespacehuffman_a84d7fe19a8794506278fd5deef39173eac57a710b53a5884c997cd67d7f1c1d65}\label{namespacehuffman_a84d7fe19a8794506278fd5deef39173eac57a710b53a5884c997cd67d7f1c1d65}} 
-k\+Invalid\+Char&A non-\/\+ASCII character was encountered. \\
 \hline
 
 \raisebox{\heightof{T}}[0pt][0pt]{\index{kInvalidFileFormat@{kInvalidFileFormat}!huffman@{huffman}}\index{huffman@{huffman}!kInvalidFileFormat@{kInvalidFileFormat}}}\mbox{\Hypertarget{namespacehuffman_a84d7fe19a8794506278fd5deef39173eaa3778470cd3fd71251db2104e42ca9cb}\label{namespacehuffman_a84d7fe19a8794506278fd5deef39173eaa3778470cd3fd71251db2104e42ca9cb}} 
@@ -38,6 +38,10 @@ k\+Invalid\+File\+Format&The compressed file format was incorrect. \\
 
 \raisebox{\heightof{T}}[0pt][0pt]{\index{kFileDoesNotExist@{kFileDoesNotExist}!huffman@{huffman}}\index{huffman@{huffman}!kFileDoesNotExist@{kFileDoesNotExist}}}\mbox{\Hypertarget{namespacehuffman_a84d7fe19a8794506278fd5deef39173ea096e2b16eac00ee2337d12c4f1b54179}\label{namespacehuffman_a84d7fe19a8794506278fd5deef39173ea096e2b16eac00ee2337d12c4f1b54179}} 
 k\+File\+Does\+Not\+Exist&The specified file does not exist. \\
+\hline
+
+\raisebox{\heightof{T}}[0pt][0pt]{\index{kEmptyFile@{kEmptyFile}!huffman@{huffman}}\index{huffman@{huffman}!kEmptyFile@{kEmptyFile}}}\mbox{\Hypertarget{namespacehuffman_a84d7fe19a8794506278fd5deef39173eaf903278dec15d80d46c62e66c2b33c70}\label{namespacehuffman_a84d7fe19a8794506278fd5deef39173eaf903278dec15d80d46c62e66c2b33c70}} 
+k\+Empty\+File&The specified file is empty. \\
 \hline
 
 \end{DoxyEnumFields}

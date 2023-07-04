@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['compress_0',['Compress',['../classhuffman_1_1HuffmanCoding.html#aacb2b05398856896f8b8754856334fd6',1,'huffman::HuffmanCoding']]]
+  ['compress_0',['Compress',['../classhuffman_1_1HuffmanCoding.html#a909a015b30efd0fc9c60d3548f8d8c40',1,'huffman::HuffmanCoding']]]
 ];
