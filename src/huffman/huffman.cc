@@ -39,18 +39,21 @@ int main(int argc, char** argv) {
         PrintErrAndExit("unknown CMD value");
     }
 
-    if (kRequiredCmdArgs != argc) { /* did we get the right cmd arg count */
-        PrintErrAndExit("invalid arg count");
+    if (kHelpCmd == cmd) { /* user just wants to see the help info */
+        PrintUsage();
+        return 0;
     }
 
     huffman::RetCode retcode = huffman::RetCode::kSuccess;
     huffman::HuffmanCoding coder;
-    if (kCompressCmd == cmd) {
-        retcode = coder.Compress(argv[2], argv[3]);
-    } else if (kDecompressCmd == cmd) {
-        retcode = coder.Decompress(argv[2], argv[3]);
-    } else if (kHelpCmd == cmd) {
-        PrintUsage();
+    if (kRequiredCmdArgs == argc) { /* did we get the right cmd arg count */
+        if (kCompressCmd == cmd) {
+            retcode = coder.Compress(argv[2], argv[3]);
+        } else if (kDecompressCmd == cmd) {
+            retcode = coder.Decompress(argv[2], argv[3]);
+        }
+    } else {
+        PrintErrAndExit("invalid arg count");
     }
 
     /* report errors if there are any */
