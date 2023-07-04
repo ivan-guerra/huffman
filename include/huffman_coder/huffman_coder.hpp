@@ -22,7 +22,7 @@ enum class RetCode {
  * Compress/decompress data using the huffman coding technique.
  *
  * HuffmanCoding implements the algorithms described in the
- * <ahref="https://en.wikipedia.org/wiki/Huffman_coding">Huffman Coding</a>
+ * <a href="https://en.wikipedia.org/wiki/Huffman_coding">Huffman Coding</a>
  * Wikipedia page.
  */
 class HuffmanCoding {
@@ -41,7 +41,7 @@ class HuffmanCoding {
      * @param [in] unarchived_filepath Path to the file to be compressed.
      * @param [in] archived_filepath   Path to file that will contain compressed
      *                                 data.
-     * @returns See RetCode.
+     * @returns See #RetCode.
      */
     RetCode Compress(const std::string& unarchived_filepath,
                      const std::string& archived_filepath);
@@ -52,7 +52,7 @@ class HuffmanCoding {
      * @param [in] archived_filepath   Path to a huffman encoded archive file.
      * @param [in] unarchived_filepath Path to file that will contain
      *                                 uncompressed data.
-     * @returns See RetCode.
+     * @returns See #RetCode.
      */
     RetCode Decompress(const std::string& archived_filepath,
                        const std::string& unarchived_filepath);
@@ -82,7 +82,7 @@ class HuffmanCoding {
      *
      * @param filepath Path to an ASCII text file.
      *
-     * @returns See RetCode.
+     * @returns See #RetCode.
      */
     RetCode CountCharFrequencies(const std::string& filepath);
 
