@@ -10,11 +10,11 @@ void PrintUsage() {
     std::cout << "\tIN_FILE\n\t\tinput file to be compressed/decompressed"
               << std::endl;
     std::cout
-        << "\tIN_FILE\n\t\toutput file storing compressed/decompressed data"
+        << "\tOUT_FILE\n\t\toutput file storing compressed/decompressed data"
         << std::endl;
     std::cout << "EXAMPLES" << std::endl;
     std::cout << "\thuffman compress data.txt data.huf" << std::endl;
-    std::cout << "\thuffman decompressed data.huf data.txt" << std::endl;
+    std::cout << "\thuffman decompress data.huf data.txt" << std::endl;
 }
 
 void PrintErrAndExit(const std::string& err) {
