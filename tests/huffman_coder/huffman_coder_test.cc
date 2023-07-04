@@ -4,7 +4,7 @@
 
 #include <string>
 
-TEST(HuffmanCodingTests, CanCompressAsciiTextFile) {
+TEST(HuffmanCodingTests, CanCompressFile) {
     huffman::HuffmanCoding coder;
     const std::string kInputFile("data/valid.txt");
     const std::string kOutputFile("data/valid.huf");
@@ -40,21 +40,12 @@ TEST(HuffmanCodingTests, CannotDecompressNonexistentInputFile) {
               huffman::RetCode::kFileDoesNotExist);
 }
 
-TEST(HuffmanCodingTests, CannotCompressFileWithNonAsciiData) {
-    huffman::HuffmanCoding coder;
-    const std::string kNonAsciiDataFile("data/nonascii.txt");
-    const std::string kOutputFile("nonascii.huf");
-
-    ASSERT_EQ(coder.Compress(kNonAsciiDataFile, kOutputFile),
-              huffman::RetCode::kInvalidChar);
-}
-
 TEST(HuffmanCodingTests, CannotCompressEmptyFile) {
     huffman::HuffmanCoding coder;
-    const std::string kNonAsciiDataFile("data/empty.txt");
+    const std::string kEmptyFile("data/empty.txt");
     const std::string kOutputFile("empty.huf");
 
-    ASSERT_EQ(coder.Compress(kNonAsciiDataFile, kOutputFile),
+    ASSERT_EQ(coder.Compress(kEmptyFile, kOutputFile),
               huffman::RetCode::kEmptyFile);
 }
 

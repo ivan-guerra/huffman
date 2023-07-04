@@ -60,10 +60,6 @@ int main(int argc, char** argv) {
     switch (retcode) {
         case huffman::RetCode::kSuccess:
             break;
-        case huffman::RetCode::kInvalidChar:
-            PrintErrAndExit(
-                "non-ASCII char detected, only ASCII chars allowed");
-            break;
         case huffman::RetCode::kInvalidFileFormat:
             PrintErrAndExit("invalid archive file format");
             break;

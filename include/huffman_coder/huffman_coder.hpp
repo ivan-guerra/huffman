@@ -13,7 +13,6 @@ namespace huffman {
 /** @brief Success and failure return codes. */
 enum class RetCode {
     kSuccess,           /**< The operation succeeded. */
-    kInvalidChar,       /**< A non-ASCII character was encountered. */
     kInvalidFileFormat, /**< The compressed file format was incorrect. */
     kFileDoesNotExist,  /**< The specified file does not exist. */
     kEmptyFile,         /**< The specified file is empty. */
@@ -37,7 +36,7 @@ class HuffmanCoding {
     HuffmanCoding& operator=(HuffmanCoding&&) = default;
 
     /**
-     * Compress the contents of an ASCII data file.
+     * Compress the contents of a data file.
      *
      * @param [in] uncompressed_filepath Path to the file to be compressed.
      * @param [in] compressed_filepath   Path to file that will contain
@@ -68,7 +67,7 @@ class HuffmanCoding {
     static const int kInternalNode; /**< Char code for an internal node. */
 
     struct HuffmanNode {
-        int character;       /**< ASCII character or kInternalNode value. */
+        int character;       /**< Character or kInternalNode value. */
         uint32_t count;      /**< Character frequency. */
         HuffmanNodePtr zero; /**< Huffman tree left subtree. */
         HuffmanNodePtr one;  /**< Huffman tree right subtree. */
@@ -81,7 +80,7 @@ class HuffmanCoding {
     /**
      * Initialize the \a char_freqs_ character frequency map.
      *
-     * @param filepath Path to an ASCII text file.
+     * @param filepath Path to a data file.
      *
      * @returns See #RetCode.
      */
@@ -101,7 +100,7 @@ class HuffmanCoding {
     /** Serialize and write Huffman encoding data to an output stream. */
     void WriteHeader(std::ofstream& os) const;
 
-    /** Encode the ASCII data in \p infile to the output file \p outfile. */
+    /** Encode the data in \p infile to the output file \p outfile. */
     void Encode(const std::string& infile, const std::string& outfile);
 
     /** Deserialize Huffman encoding data from an archive file stream. */
@@ -112,8 +111,7 @@ class HuffmanCoding {
      *
      * @param [in] bitstream A boolean vector representing the individual bits
      *                       read from an encoded data stream.
-     * @param [in] os        An output stream object used to write decoded
-     *                       ASCII character data.
+     * @param [in] os        An output stream object used to write decoded data.
      */
     void DecodeStream(const std::vector<bool>& bitstream, std::ofstream& os);
 

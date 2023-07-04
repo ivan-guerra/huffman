@@ -13,19 +13,11 @@ const int HuffmanCoding::kReadBuffSize = 1024;
 const int HuffmanCoding::kInternalNode = 256;
 
 RetCode HuffmanCoding::CountCharFrequencies(const std::string& infile) {
-    auto IsAscii = [](char c) {
-        return !(static_cast<unsigned char>(c) > 127);
-    };
-
     /* read the input file in kReadBuffSize sized chunks */
     std::ifstream infile_stream(infile, std::ios::binary);
     while (infile_stream) {
         infile_stream.read(read_buffer_.data(), read_buffer_.size());
         for (std::streamsize i = 0; i < infile_stream.gcount(); ++i) {
-            if (!IsAscii(read_buffer_[i])) { /* we don't allow non-ascii
-                                                characters */
-                return RetCode::kInvalidChar;
-            }
             char_freqs_[read_buffer_[i]]++; /* up the char's frequency */
         }
     }
@@ -101,7 +93,7 @@ void HuffmanCoding::Encode(const std::string& infile,
         /* read uncompressed data */
         infile_stream.read(read_buffer_.data(), read_buffer_.size());
 
-        /* encode the individual ascii chars in the buffer */
+        /* encode the chars in the buffer */
         for (std::streamsize i = 0; i < infile_stream.gcount(); ++i) {
             /* since the smallest unit we can write to a file is a byte not a
              * bit, the code below constructs a byte from the bits in an
@@ -219,7 +211,7 @@ RetCode HuffmanCoding::Compress(const std::string& uncompressed_filepath,
         return RetCode::kFileDoesNotExist;
     }
 
-    /* scan the uncompressed file once to compute ascii char frequencies */
+    /* scan the uncompressed file once to compute char frequencies */
     RetCode retcode = CountCharFrequencies(uncompressed_filepath);
     if (RetCode::kSuccess != retcode) {
         return retcode;
