@@ -1,0 +1,8 @@
+[package]
+name = "huffman"
+version = "0.1.0"
+edition = "2021"
+description = "A Huffman compression utility."
+license = "Unlicense"
+
+[dependencies]
