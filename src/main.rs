@@ -37,11 +37,27 @@ struct DecompressArgs {
 fn main() {
     let cli = Cli::parse();
     match &cli.command {
-        Commands::Compress(_args) => {
-            println!("Compressing...");
+        Commands::Compress(args) => {
+            let config = huffman::CompressConfig::new(
+                args.decompressed_data.clone(),
+                args.compressed_data.clone(),
+            );
+
+            if let Err(e) = huffman::compress(&config) {
+                eprintln!("error: {}", e);
+                std::process::exit(1);
+            }
         }
-        Commands::Decompress(_args) => {
-            println!("Decompressing...");
+        Commands::Decompress(args) => {
+            let config = huffman::DecompressConfig::new(
+                args.compressed_data.clone(),
+                args.decompressed_data.clone(),
+            );
+
+            if let Err(e) = huffman::decompress(&config) {
+                eprintln!("error: {}", e);
+                std::process::exit(1);
+            }
         }
     }
 }
