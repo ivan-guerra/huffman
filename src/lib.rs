@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{Read, Seek, Write};
 
 static HUFFMAN_MAGIC: [u8; 4] = [0x48, 0x55, 0x46, 0x46]; // "HUFF"
 static HUFFMAN_VERSION: u8 = 1;
@@ -174,10 +174,10 @@ pub fn build_codebook(
     }
 }
 
-pub fn write_huffman_header(
+pub fn write_huffman_header<W: Write + Seek>(
     char_frequency_map: &HashMap<u8, u64>,
-    output_file: &mut File,
-) -> Result<(), std::io::Error> {
+    output_file: &mut W,
+) -> std::io::Result<()> {
     output_file.write_all(&HUFFMAN_MAGIC)?;
     output_file.write_all(&[HUFFMAN_VERSION])?;
 
@@ -192,7 +192,9 @@ pub fn write_huffman_header(
     Ok(())
 }
 
-pub fn read_huffman_header(input_file: &mut File) -> Result<HashMap<u8, u64>, Box<dyn Error>> {
+pub fn read_huffman_header<W: Read + Seek>(
+    input_file: &mut W,
+) -> Result<HashMap<u8, u64>, Box<dyn Error>> {
     let mut magic = [0; 4];
     input_file.read_exact(&mut magic)?;
     if magic != HUFFMAN_MAGIC {
@@ -335,4 +337,318 @@ pub fn decompress(config: &DecompressConfig) -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::io::Cursor;
+    use testdir::testdir;
+
+    #[test]
+    fn load_char_frequency_map_can_read_basic_text() {
+        let dir = testdir!();
+        let test_file = dir.join("test.txt");
+        fs::write(&test_file, "hello world").unwrap();
+
+        let result = load_char_frequency_map(&test_file).unwrap();
+
+        assert_eq!(result.get(&b'h').unwrap(), &1);
+        assert_eq!(result.get(&b'e').unwrap(), &1);
+        assert_eq!(result.get(&b'l').unwrap(), &3);
+        assert_eq!(result.get(&b'o').unwrap(), &2);
+        assert_eq!(result.get(&b'w').unwrap(), &1);
+        assert_eq!(result.get(&b'r').unwrap(), &1);
+        assert_eq!(result.get(&b'd').unwrap(), &1);
+        assert_eq!(result.get(&b' ').unwrap(), &1);
+        assert_eq!(result.len(), 8);
+    }
+
+    #[test]
+    fn load_char_frequency_map_returns_empty_map_when_given_empty_file() {
+        let dir = testdir!();
+        let test_file = dir.join("empty.txt");
+        fs::write(&test_file, "").unwrap();
+
+        let result = load_char_frequency_map(&test_file).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn load_char_frequency_map_returns_error_when_given_nonexistent_file() {
+        let dir = testdir!();
+        let nonexistent = dir.join("nonexistent.txt");
+
+        let result = load_char_frequency_map(&nonexistent);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn load_char_frequency_map_returns_error_when_given_directory() {
+        let dir = testdir!();
+
+        let result = load_char_frequency_map(&dir.as_path().to_path_buf());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn build_huffman_tree_returns_error_when_given_empty_char_freq_map() {
+        let frequencies = HashMap::new();
+        let tree = build_huffman_tree(&frequencies);
+        assert!(tree.is_err());
+    }
+
+    #[test]
+    fn build_huffman_tree_can_build_tree_with_single_node() {
+        let mut frequencies = HashMap::new();
+        frequencies.insert(b'a', 1);
+
+        let tree = build_huffman_tree(&frequencies).unwrap();
+        assert_eq!(tree.byte, Some(b'a'));
+        assert_eq!(tree.frequency, 1);
+        assert!(tree.left.is_none());
+        assert!(tree.right.is_none());
+    }
+
+    #[test]
+    fn build_huffman_tree_can_build_tree_with_multiple_nodes() {
+        let mut frequencies = HashMap::new();
+        frequencies.insert(b'a', 2);
+        frequencies.insert(b'b', 3);
+        frequencies.insert(b'c', 1);
+
+        let tree = build_huffman_tree(&frequencies).unwrap();
+        assert_eq!(tree.frequency, 6); // root should have total frequency
+        assert!(tree.byte.is_none()); // root should not have a byte
+    }
+
+    #[test]
+    fn build_huffman_tree_can_partition_chars() {
+        let mut frequencies = HashMap::new();
+        frequencies.insert(b'a', 5);
+        frequencies.insert(b'b', 2);
+
+        let tree = build_huffman_tree(&frequencies).unwrap();
+        assert_eq!(tree.frequency, 7);
+        assert!(tree.byte.is_none());
+
+        // 'a' should be in the path with higher frequency
+        let higher_freq_node =
+            if tree.left.as_ref().unwrap().frequency > tree.right.as_ref().unwrap().frequency {
+                tree.left.as_ref().unwrap()
+            } else {
+                tree.right.as_ref().unwrap()
+            };
+        assert_eq!(higher_freq_node.byte, Some(b'a'));
+        assert_eq!(higher_freq_node.frequency, 5);
+    }
+
+    #[test]
+    fn write_huffman_header_writes_basic_header() -> Result<(), std::io::Error> {
+        // Create a test frequency map
+        let mut char_frequency_map = HashMap::new();
+        char_frequency_map.insert(b'a', 2);
+        char_frequency_map.insert(b'b', 3);
+
+        // Use a cursor as our "file" so we can write to memory
+        let mut buffer = Cursor::new(Vec::new());
+
+        // Write the header
+        write_huffman_header(&char_frequency_map, &mut buffer)?;
+
+        // Get the written bytes
+        let written_data = buffer.into_inner();
+
+        // Check magic bytes (HUFFMAN_MAGIC)
+        assert_eq!(&written_data[0..4], HUFFMAN_MAGIC);
+
+        // Check version
+        assert_eq!(written_data[4], HUFFMAN_VERSION);
+
+        // Check number of characters (2 in little endian)
+        assert_eq!(&written_data[5..9], &2u32.to_le_bytes());
+
+        // Extract both character entries
+        let first_entry = &written_data[9..18];
+        let second_entry = &written_data[18..27];
+
+        // Create sets of expected entries
+        let a_entry = [b'a']
+            .iter()
+            .chain(&2u64.to_le_bytes())
+            .copied()
+            .collect::<Vec<u8>>();
+        let b_entry = [b'b']
+            .iter()
+            .chain(&3u64.to_le_bytes())
+            .copied()
+            .collect::<Vec<u8>>();
+
+        // Check that both entries exist in either order
+        assert!(
+            (first_entry == a_entry.as_slice() && second_entry == b_entry.as_slice())
+                || (first_entry == b_entry.as_slice() && second_entry == a_entry.as_slice())
+        );
+
+        // Verify total length
+        assert_eq!(written_data.len(), 27); // 4 + 1 + 4 + (1 + 8) * 2
+
+        Ok(())
+    }
+
+    #[test]
+    fn write_huffman_header_writes_empty_map() -> Result<(), std::io::Error> {
+        let char_frequency_map = HashMap::new();
+        let mut buffer = Cursor::new(Vec::new());
+
+        write_huffman_header(&char_frequency_map, &mut buffer)?;
+
+        let written_data = buffer.into_inner();
+
+        // Check magic bytes and version
+        assert_eq!(&written_data[0..4], HUFFMAN_MAGIC);
+        assert_eq!(written_data[4], HUFFMAN_VERSION);
+
+        // Check number of characters (0 in little endian)
+        assert_eq!(&written_data[5..9], &0u32.to_le_bytes());
+
+        // Verify total length
+        assert_eq!(written_data.len(), 9); // just magic + version + char count
+
+        Ok(())
+    }
+
+    #[test]
+    fn write_huffman_header_writes_map_with_max_char_frequency() -> Result<(), std::io::Error> {
+        let mut char_frequency_map = HashMap::new();
+        char_frequency_map.insert(b'x', u64::MAX); // Maximum possible frequency
+
+        let mut buffer = Cursor::new(Vec::new());
+        write_huffman_header(&char_frequency_map, &mut buffer)?;
+
+        let written_data = buffer.into_inner();
+
+        // Check the frequency bytes
+        assert_eq!(&written_data[10..18], &u64::MAX.to_le_bytes());
+
+        Ok(())
+    }
+
+    #[test]
+    fn read_huffman_header_reads_basic_header() -> Result<(), Box<dyn Error>> {
+        // Create test data
+        let mut expected_frequencies = HashMap::new();
+        expected_frequencies.insert(b'a', 2);
+        expected_frequencies.insert(b'b', 3);
+
+        // Create a buffer and write a valid header to it
+        let mut write_buffer = Cursor::new(Vec::new());
+        write_huffman_header(&expected_frequencies, &mut write_buffer)?;
+
+        // Create a reader from the written data
+        let buffer_contents = write_buffer.into_inner();
+        let mut reader = Cursor::new(buffer_contents);
+
+        // Read the header
+        let read_frequencies = read_huffman_header(&mut reader)?;
+
+        // Verify the frequencies match
+        assert_eq!(read_frequencies, expected_frequencies);
+
+        Ok(())
+    }
+
+    #[test]
+    fn read_huffman_header_returns_error_on_invalid_magic_num() -> Result<(), Box<dyn Error>> {
+        let mut invalid_data = vec![0, 1, 2, 3]; // Wrong magic bytes
+        invalid_data.extend_from_slice(&[HUFFMAN_VERSION]); // Version
+        invalid_data.extend_from_slice(&0u32.to_le_bytes()); // Empty frequency map
+
+        let mut reader = Cursor::new(invalid_data);
+
+        match read_huffman_header(&mut reader) {
+            Err(e) => assert_eq!(e.to_string(), "invalid header magic"),
+            Ok(_) => panic!("expected error for invalid magic bytes"),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn read_huffman_header_returns_error_on_invalid_version_num() -> Result<(), Box<dyn Error>> {
+        let mut invalid_data = Vec::new();
+        invalid_data.extend_from_slice(&HUFFMAN_MAGIC); // Correct magic
+        invalid_data.extend_from_slice(&[HUFFMAN_VERSION + 1]); // Wrong version
+        invalid_data.extend_from_slice(&0u32.to_le_bytes()); // Empty frequency map
+
+        let mut reader = Cursor::new(invalid_data);
+
+        match read_huffman_header(&mut reader) {
+            Err(e) => assert_eq!(e.to_string(), "unsupported header version"),
+            Ok(_) => panic!("Expected error for invalid version"),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn read_huffman_header_reads_empty_map() -> Result<(), Box<dyn Error>> {
+        let empty_frequencies = HashMap::new();
+
+        // Create a buffer and write an empty header
+        let mut write_buffer = Cursor::new(Vec::new());
+        write_huffman_header(&empty_frequencies, &mut write_buffer)?;
+
+        // Read it back
+        let buffer_contents = write_buffer.into_inner();
+        let mut reader = Cursor::new(buffer_contents);
+
+        let read_frequencies = read_huffman_header(&mut reader)?;
+
+        assert_eq!(read_frequencies, empty_frequencies);
+
+        Ok(())
+    }
+
+    #[test]
+    fn read_huffman_header_reads_map_with_max_frequency() -> Result<(), Box<dyn Error>> {
+        let mut frequencies = HashMap::new();
+        frequencies.insert(b'x', u64::MAX);
+
+        // Create a buffer and write header with max frequency
+        let mut write_buffer = Cursor::new(Vec::new());
+        write_huffman_header(&frequencies, &mut write_buffer)?;
+
+        // Read it back
+        let buffer_contents = write_buffer.into_inner();
+        let mut reader = Cursor::new(buffer_contents);
+
+        let read_frequencies = read_huffman_header(&mut reader)?;
+
+        assert_eq!(read_frequencies.get(&b'x'), Some(&u64::MAX));
+
+        Ok(())
+    }
+
+    #[test]
+    fn read_huffman_header_returns_error_on_truncated_header() -> Result<(), Box<dyn Error>> {
+        // Create valid data first
+        let mut frequencies = HashMap::new();
+        frequencies.insert(b'a', 1);
+
+        let mut write_buffer = Cursor::new(Vec::new());
+        write_huffman_header(&frequencies, &mut write_buffer)?;
+
+        // Truncate the data
+        let mut truncated_data = write_buffer.into_inner();
+        truncated_data.truncate(truncated_data.len() - 1);
+
+        let mut reader = Cursor::new(truncated_data);
+
+        // Should fail with IO error
+        assert!(read_huffman_header(&mut reader).is_err());
+
+        Ok(())
+    }
 }
