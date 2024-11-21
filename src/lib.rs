@@ -1,3 +1,4 @@
+use bitvec::prelude::BitVec;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::error::Error;
@@ -67,7 +68,7 @@ impl HuffmanNode {
 
 impl PartialEq for HuffmanNode {
     fn eq(&self, other: &Self) -> bool {
-        self.frequency == other.frequency
+        self.frequency == other.frequency && self.byte == other.byte
     }
 }
 
@@ -81,8 +82,19 @@ impl PartialOrd for HuffmanNode {
 
 impl Ord for HuffmanNode {
     fn cmp(&self, other: &Self) -> Ordering {
-        // Reverse ordering so higher frequencies have lower priority
-        other.frequency.cmp(&self.frequency)
+        // First compare by frequency in reverse order
+        let freq_cmp = other.frequency.cmp(&self.frequency);
+        if freq_cmp != Ordering::Equal {
+            return freq_cmp;
+        }
+
+        // If frequencies are equal, compare bytes to ensure stable ordering
+        match (self.byte, other.byte) {
+            (Some(a), Some(b)) => a.cmp(&b),
+            (None, None) => Ordering::Equal,
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+        }
     }
 }
 
@@ -144,33 +156,24 @@ pub fn build_huffman_tree(
 
 pub fn build_codebook(
     huffman_tree: &HuffmanNode,
-    codebook: &mut HashMap<u8, (Vec<u8>, usize)>,
-    mut bits: Vec<u8>,
-    bit_length: usize,
+    codebook: &mut HashMap<u8, BitVec>,
+    bits: BitVec,
 ) {
     if let Some(byte) = huffman_tree.byte {
-        codebook.insert(byte, (bits, bit_length));
-    } else {
-        let byte_index = bit_length / 8;
-        let bit_position = bit_length % 8;
+        codebook.insert(byte, bits);
+        return;
+    }
 
-        // Ensure we have enough space
-        if byte_index >= bits.len() {
-            bits.push(0);
-        }
+    if let Some(ref left) = huffman_tree.left {
+        let mut left_bits = bits.clone();
+        left_bits.push(false); // Add 0 for left path
+        build_codebook(left, codebook, left_bits);
+    }
 
-        if let Some(ref left) = huffman_tree.left {
-            let left_bits = bits.clone();
-            // Set bit to 0 (already 0 by default)
-            build_codebook(left, codebook, left_bits, bit_length + 1);
-        }
-
-        if let Some(ref right) = huffman_tree.right {
-            let mut right_bits = bits.clone();
-            // Set bit to 1
-            right_bits[byte_index] |= 1 << (7 - bit_position);
-            build_codebook(right, codebook, right_bits, bit_length + 1);
-        }
+    if let Some(ref right) = huffman_tree.right {
+        let mut right_bits = bits.clone();
+        right_bits.push(true); // Add 1 for right path
+        build_codebook(right, codebook, right_bits);
     }
 }
 
@@ -235,7 +238,7 @@ pub fn compress(config: &CompressConfig) -> Result<(), Box<dyn Error>> {
     let char_frequency_map = load_char_frequency_map(&config.decompressed_data)?;
     let huffman_tree = build_huffman_tree(&char_frequency_map)?;
     let mut codebook = HashMap::new();
-    build_codebook(&huffman_tree, &mut codebook, Vec::new(), 0);
+    build_codebook(&huffman_tree, &mut codebook, BitVec::new());
 
     let mut input_file = File::open(&config.decompressed_data)?;
     let mut output_file = File::create(&config.compressed_data)?;
@@ -255,14 +258,10 @@ pub fn compress(config: &CompressConfig) -> Result<(), Box<dyn Error>> {
         }
 
         for &byte in &input_buffer[..bytes_read] {
-            let (code, code_length) = codebook.get(&byte).unwrap();
+            let code = codebook.get(&byte).unwrap();
 
-            let mut bit_index = 0;
-            while bit_index < *code_length {
-                let code_byte = code[bit_index / 8];
-                let bit = (code_byte >> (7 - (bit_index % 8))) & 1;
-
-                current_byte = (current_byte << 1) | bit;
+            for bit in code.iter() {
+                current_byte = (current_byte << 1) | if *bit { 1 } else { 0 };
                 bit_count += 1;
 
                 if bit_count == 8 {
@@ -276,8 +275,6 @@ pub fn compress(config: &CompressConfig) -> Result<(), Box<dyn Error>> {
                         output_pos = 0;
                     }
                 }
-
-                bit_index += 1;
             }
         }
     }
@@ -307,33 +304,48 @@ pub fn decompress(config: &DecompressConfig) -> Result<(), Box<dyn Error>> {
     input_file.read_to_end(&mut input_buffer)?;
 
     let mut output_file = File::create(&config.decompressed_data)?;
-    let num_chars = char_frequency_map.len();
+    let num_chars = char_frequency_map.values().sum::<u64>();
     let mut num_chars_decoded = 0;
-    let mut i = 0;
-    while (i < input_buffer.len()) && (num_chars_decoded < num_chars) {
-        let current_byte = input_buffer[i];
-        i += 1;
-        let mut bit_index = 0;
-        while bit_index < 8 {
-            let mut current_node = &huffman_tree;
-            while current_node.byte.is_none() {
-                let bit = (current_byte >> (7 - bit_index)) & 1;
-                bit_index += 1;
+    let mut byte_index = 0;
+    let mut current_byte = if !input_buffer.is_empty() {
+        input_buffer[0]
+    } else {
+        0
+    };
+    let mut bits_remaining = 8;
 
-                if bit == 0 {
-                    current_node = current_node.left.as_ref().unwrap();
-                } else {
-                    current_node = current_node.right.as_ref().unwrap();
-                }
+    while num_chars_decoded < num_chars {
+        let mut current_node = &huffman_tree;
+
+        // Navigate the tree until we reach a leaf node
+        while current_node.byte.is_none() {
+            if byte_index >= input_buffer.len() {
+                return Err("unexpected end of compressed data".into());
             }
 
-            output_file.write_all(&[current_node.byte.unwrap()])?;
-            num_chars_decoded += 1;
+            // Read the next bit
+            let bit = (current_byte & (1 << (bits_remaining - 1))) != 0;
 
-            if num_chars_decoded == num_chars {
-                break;
+            current_node = if bit {
+                current_node.right.as_ref().unwrap()
+            } else {
+                current_node.left.as_ref().unwrap()
+            };
+
+            // Move to next bit
+            bits_remaining -= 1;
+            if bits_remaining == 0 {
+                byte_index += 1;
+                if byte_index < input_buffer.len() {
+                    current_byte = input_buffer[byte_index];
+                }
+                bits_remaining = 8;
             }
         }
+
+        // Write the decoded byte
+        output_file.write_all(&[current_node.byte.unwrap()])?;
+        num_chars_decoded += 1;
     }
 
     Ok(())
