@@ -477,59 +477,58 @@ pub fn compress(config: &CompressConfig) -> Result<(), Box<dyn Error>> {
 
 /// Decompresses a file that was compressed using Huffman encoding.
 ///
-/// This function performs the following steps:
-/// 1. Reads the Huffman header containing character frequencies
-/// 2. Reconstructs the Huffman tree from the frequency map
-/// 3. Processes the compressed data bit by bit, traversing the Huffman tree
-/// 4. Writes the decoded bytes to the output file
+/// This function reads a compressed file in 4KB chunks, reconstructs the Huffman tree
+/// from the header information, and writes the decompressed data to the output file.
 ///
 /// # Arguments
 ///
-/// * `config` - A reference to `DecompressConfig` containing the paths for input
-///              (compressed_data) and output (decompressed_data) files
+/// * `config` - A reference to `DecompressConfig` containing the paths for the input
+///              (compressed) and output (decompressed) files.
 ///
 /// # Returns
 ///
-/// * `Result<(), Box<dyn Error>>` - Ok(()) on successful decompression, or an error
-///                                  if any operation fails
+/// * `Ok(())` if decompression was successful
+/// * `Err(Box<dyn Error>)` if any error occurred during decompression
 ///
 /// # Errors
 ///
-/// This function may return an error if:
+/// This function will return an error if:
 /// * The input file cannot be opened or read
 /// * The output file cannot be created or written to
-/// * The Huffman header is invalid or corrupted
-/// * The compressed data is truncated or corrupted
-/// * The Huffman tree cannot be reconstructed from the frequency map
+/// * The compressed file is corrupted or incomplete
+/// * The Huffman header is invalid
 pub fn decompress(config: &DecompressConfig) -> Result<(), Box<dyn Error>> {
     let mut input_file = File::open(&config.compressed_data)?;
     let char_frequency_map = read_huffman_header(&mut input_file)?;
     let huffman_tree = build_huffman_tree(&char_frequency_map)?;
 
-    // Buffer the bytes (excluding the header) in a byte vector
-    let mut input_buffer = Vec::new();
-    input_file.read_to_end(&mut input_buffer)?;
-
     let mut output_file = File::create(&config.decompressed_data)?;
     let num_chars = char_frequency_map.values().sum::<u64>();
     let mut num_chars_decoded = 0;
-    let mut byte_index = 0;
-    let mut current_byte = if !input_buffer.is_empty() {
-        input_buffer[0]
-    } else {
-        0
-    };
-    let mut bits_remaining = 8;
+
+    const BUFFER_SIZE: usize = 4096;
+    let mut buffer = vec![0; BUFFER_SIZE];
+    let mut current_byte = 0;
+    let mut bits_remaining = 0;
+    let mut buffer_pos = 0;
+    let mut buffer_len = 0;
 
     while num_chars_decoded < num_chars {
+        // Refill buffer if needed
+        if buffer_pos >= buffer_len {
+            buffer_len = input_file.read(&mut buffer)?;
+            if buffer_len == 0 {
+                return Err("unexpected end of compressed data".into());
+            }
+            buffer_pos = 0;
+            current_byte = buffer[0];
+            bits_remaining = 8;
+        }
+
         let mut current_node = &huffman_tree;
 
         // Navigate the tree until we reach a leaf node
         while current_node.byte.is_none() {
-            if byte_index >= input_buffer.len() {
-                return Err("unexpected end of compressed data".into());
-            }
-
             // Read the next bit
             let bit = (current_byte & (1 << (bits_remaining - 1))) != 0;
 
@@ -542,10 +541,15 @@ pub fn decompress(config: &DecompressConfig) -> Result<(), Box<dyn Error>> {
             // Move to next bit
             bits_remaining -= 1;
             if bits_remaining == 0 {
-                byte_index += 1;
-                if byte_index < input_buffer.len() {
-                    current_byte = input_buffer[byte_index];
+                buffer_pos += 1;
+                if buffer_pos >= buffer_len {
+                    buffer_len = input_file.read(&mut buffer)?;
+                    if buffer_len == 0 {
+                        return Err("unexpected end of compressed data".into());
+                    }
+                    buffer_pos = 0;
                 }
+                current_byte = buffer[buffer_pos];
                 bits_remaining = 8;
             }
         }
@@ -1088,5 +1092,113 @@ mod tests {
 
         assert!(output_path.exists());
         Ok(())
+    }
+
+    #[test]
+    fn decompress_rejects_invalid_magic_number() {
+        let dir = testdir!();
+        let compressed_path = dir.join("invalid.bin");
+        let decompressed_path = dir.join("output.txt");
+
+        // Write invalid magic number
+        let invalid_data = vec![0x00, 0x00, 0x00, 0x00, HUFFMAN_VERSION];
+        fs::write(&compressed_path, invalid_data).unwrap();
+
+        let config = DecompressConfig {
+            compressed_data: compressed_path,
+            decompressed_data: decompressed_path,
+        };
+
+        let result = decompress(&config);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "invalid header magic");
+    }
+
+    #[test]
+    fn decompress_rejects_invalid_version() {
+        let dir = testdir!();
+        let compressed_path = dir.join("invalid_version.bin");
+        let decompressed_path = dir.join("output.txt");
+
+        // Write valid magic but invalid version
+        let mut data = Vec::new();
+        data.extend_from_slice(&HUFFMAN_MAGIC);
+        data.push(HUFFMAN_VERSION + 1);
+        fs::write(&compressed_path, data).unwrap();
+
+        let config = DecompressConfig {
+            compressed_data: compressed_path,
+            decompressed_data: decompressed_path,
+        };
+
+        let result = decompress(&config);
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "unsupported header version"
+        );
+    }
+
+    #[test]
+    fn decompress_empty_frequency_map() {
+        let dir = testdir!();
+        let compressed_path = dir.join("empty.bin");
+        let decompressed_path = dir.join("output.txt");
+
+        // Create compressed file with valid header but empty frequency map
+        let mut data = Vec::new();
+        data.extend_from_slice(&HUFFMAN_MAGIC);
+        data.push(HUFFMAN_VERSION);
+        data.extend_from_slice(&0u32.to_le_bytes()); // Zero characters in frequency map
+
+        fs::write(&compressed_path, data).unwrap();
+
+        let config = DecompressConfig {
+            compressed_data: compressed_path,
+            decompressed_data: decompressed_path,
+        };
+
+        let result = decompress(&config);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("empty input"));
+    }
+
+    #[test]
+    fn decompress_truncated_file() {
+        let dir = testdir!();
+        let compressed_path = dir.join("truncated.bin");
+        let decompressed_path = dir.join("output.txt");
+
+        // Create truncated compressed file
+        let mut data = Vec::new();
+        data.extend_from_slice(&HUFFMAN_MAGIC);
+        data.push(HUFFMAN_VERSION);
+        data.extend_from_slice(&1u32.to_le_bytes()); // One character in frequency map
+                                                     // Truncate before frequency data
+
+        fs::write(&compressed_path, data).unwrap();
+
+        let config = DecompressConfig {
+            compressed_data: compressed_path,
+            decompressed_data: decompressed_path,
+        };
+
+        let result = decompress(&config);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn decompress_nonexistent_file() {
+        let dir = testdir!();
+        let compressed_path = dir.join("nonexistent.bin");
+        let decompressed_path = dir.join("output.txt");
+
+        let config = DecompressConfig {
+            compressed_data: compressed_path,
+            decompressed_data: decompressed_path,
+        };
+
+        let result = decompress(&config);
+        assert!(result.is_err());
     }
 }
