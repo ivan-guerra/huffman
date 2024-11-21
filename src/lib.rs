@@ -1,3 +1,47 @@
+//! A Huffman coding implementation for file compression and decompression.
+//!
+//! This module provides functionality to compress and decompress files using Huffman coding,
+//! a popular data compression technique that creates variable-length codes for characters
+//! based on their frequency of occurrence.
+//!
+//! # Features
+//!
+//! * File compression using Huffman encoding
+//! * File decompression of Huffman-encoded files
+//! * Efficient memory usage with buffered I/O operations
+//! * Support for any binary data (not limited to text)
+//!
+//! # Example
+//!
+//! ```no_run
+//! use huffman::{compress, decompress, CompressConfig, DecompressConfig};
+//!
+//! // Compress a file
+//! let compress_config = CompressConfig {
+//!     decompressed_data: "input.txt".into(),
+//!     compressed_data: "compressed.bin".into(),
+//! };
+//! compress(&compress_config).expect("Failed to compress file");
+//!
+//! // Decompress a file
+//! let decompress_config = DecompressConfig {
+//!     compressed_data: "compressed.bin".into(),
+//!     decompressed_data: "output.txt".into(),
+//! };
+//! decompress(&decompress_config).expect("Failed to decompress file");
+//! ```
+//!
+//! # File Format
+//!
+//! Compressed files contain:
+//! - A header with byte frequencies (used to reconstruct the Huffman tree)
+//! - The compressed data as a stream of bits
+//!
+//! # Performance
+//!
+//! The implementation uses buffered I/O for both reading and writing operations
+//! to minimize system calls and improve performance. The compression ratio
+//! depends on the input data characteristics and the distribution of byte frequencies.
 use bitvec::prelude::BitVec;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -5,11 +49,16 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{Read, Seek, Write};
 
-static HUFFMAN_MAGIC: [u8; 4] = [0x48, 0x55, 0x46, 0x46]; // "HUFF"
+/// Magic number for identifying Huffman compressed files - "HUFF" in ASCII
+static HUFFMAN_MAGIC: [u8; 4] = [0x48, 0x55, 0x46, 0x46];
+/// Version number of the Huffman compression format
 static HUFFMAN_VERSION: u8 = 1;
 
+/// Configuration for Huffman compression
 pub struct CompressConfig {
+    /// Path to the input file containing the original uncompressed data
     pub decompressed_data: std::path::PathBuf,
+    /// Path to the output file where compressed data will be written
     pub compressed_data: std::path::PathBuf,
 }
 
@@ -25,8 +74,11 @@ impl CompressConfig {
     }
 }
 
+/// Configuration for Huffman decompression
 pub struct DecompressConfig {
+    /// Path to the input file containing Huffman-compressed data
     pub compressed_data: std::path::PathBuf,
+    /// Path to the output file where decompressed data will be written
     pub decompressed_data: std::path::PathBuf,
 }
 
@@ -42,11 +94,19 @@ impl DecompressConfig {
     }
 }
 
+/// A node in the Huffman tree used for encoding and decoding
+///
+/// Each node contains an optional byte value (for leaf nodes),
+/// frequency count, and optional left and right child nodes
 #[derive(Clone)]
 pub struct HuffmanNode {
+    /// The byte value stored in this node (None for internal nodes)
     pub byte: Option<u8>,
+    /// Frequency count of this byte in the input data
     pub frequency: u64,
+    /// Left child node in the Huffman tree
     left: Option<Box<HuffmanNode>>,
+    /// Right child node in the Huffman tree
     right: Option<Box<HuffmanNode>>,
 }
 
@@ -98,6 +158,16 @@ impl Ord for HuffmanNode {
     }
 }
 
+/// Reads a file and creates a frequency map of byte occurrences
+///
+/// # Arguments
+///
+/// * `decompressed_data` - Path to the input file to analyze
+///
+/// # Returns
+///
+/// * `Result<HashMap<u8, u64>, std::io::Error>` - A map of bytes to their frequencies,
+///   or an I/O error if reading fails
 pub fn load_char_frequency_map(
     decompressed_data: &std::path::PathBuf,
 ) -> Result<HashMap<u8, u64>, std::io::Error> {
@@ -119,6 +189,25 @@ pub fn load_char_frequency_map(
     Ok(char_frequency_map)
 }
 
+/// Builds a Huffman tree from a frequency map of bytes
+///
+/// # Arguments
+///
+/// * `char_frequency_map` - A HashMap containing byte values and their frequencies
+///
+/// # Returns
+///
+/// * `Result<HuffmanNode, Box<dyn Error>>` - The root node of the Huffman tree if successful,
+///   or an error if the frequency map is empty or tree construction fails
+///
+/// # Description
+///
+/// This function creates a Huffman tree using the following algorithm:
+/// 1. Creates a priority queue of nodes, initially containing leaf nodes for each byte
+/// 2. Repeatedly combines the two lowest-frequency nodes into a new internal node
+/// 3. Returns the final root node of the tree
+///
+/// The resulting tree can be used for Huffman encoding and decoding operations.
 pub fn build_huffman_tree(
     char_frequency_map: &HashMap<u8, u64>,
 ) -> Result<HuffmanNode, Box<dyn Error>> {
@@ -154,6 +243,22 @@ pub fn build_huffman_tree(
         .ok_or_else(|| "failed to extract final node from priority queue".into())
 }
 
+/// Builds a codebook mapping bytes to their Huffman codes
+///
+/// # Arguments
+///
+/// * `huffman_tree` - Reference to the root node of the Huffman tree
+/// * `codebook` - Mutable reference to a HashMap that will store the byte-to-code mappings
+/// * `bits` - Current bit sequence being built during tree traversal
+///
+/// # Description
+///
+/// This function performs a recursive traversal of the Huffman tree to generate binary codes
+/// for each byte. For each leaf node encountered:
+/// - Left branches add a 0 to the code
+/// - Right branches add a 1 to the codebook
+///
+/// The final codebook maps each byte to its variable-length binary code
 pub fn build_codebook(
     huffman_tree: &HuffmanNode,
     codebook: &mut HashMap<u8, BitVec>,
@@ -177,6 +282,26 @@ pub fn build_codebook(
     }
 }
 
+/// Writes the Huffman compression header to the output file
+///
+/// # Arguments
+///
+/// * `char_frequency_map` - HashMap containing byte frequencies used to build the Huffman tree
+/// * `output_file` - Mutable reference to the output file implementing Write and Seek traits
+///
+/// # Returns
+///
+/// * `std::io::Result<()>` - Ok if header is written successfully, Err for I/O errors
+///
+/// # Format
+///
+/// The header consists of:
+/// - Magic number ("HUFF")
+/// - Version number (1 byte)
+/// - Number of characters (4 bytes, little-endian)
+/// - For each character:
+///   - Byte value (1 byte)
+///   - Frequency (8 bytes, little-endian)
 pub fn write_huffman_header<W: Write + Seek>(
     char_frequency_map: &HashMap<u8, u64>,
     output_file: &mut W,
@@ -195,6 +320,33 @@ pub fn write_huffman_header<W: Write + Seek>(
     Ok(())
 }
 
+/// Reads and validates the Huffman compression header from the input file
+///
+/// # Arguments
+///
+/// * `input_file` - Mutable reference to the input file implementing Read and Seek traits
+///
+/// # Returns
+///
+/// * `Result<HashMap<u8, u64>, Box<dyn Error>>` - A HashMap containing byte frequencies if successful,
+///   or an error if the header is invalid or reading fails
+///
+/// # Format
+///
+/// Expected header format:
+/// - Magic number ("HUFF", 4 bytes)
+/// - Version number (1 byte)
+/// - Number of characters (4 bytes, little-endian)
+/// - For each character:
+///   - Byte value (1 byte)
+///   - Frequency (8 bytes, little-endian)
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The magic number doesn't match "HUFF"
+/// - The version number is unsupported
+/// - I/O errors occur while reading
 pub fn read_huffman_header<W: Read + Seek>(
     input_file: &mut W,
 ) -> Result<HashMap<u8, u64>, Box<dyn Error>> {
@@ -230,6 +382,35 @@ pub fn read_huffman_header<W: Read + Seek>(
     Ok(char_frequency_map)
 }
 
+/// Compresses a file using Huffman encoding.
+///
+/// This function performs the following steps:
+/// 1. Creates a frequency map of characters from the input file
+/// 2. Builds a Huffman tree based on the frequency map
+/// 3. Generates a codebook mapping characters to their Huffman codes
+/// 4. Writes the Huffman header (frequency map) to the output file
+/// 5. Processes the input file in chunks, encoding each byte using the codebook
+/// 6. Writes the encoded data to the output file in bytes
+///
+/// The function uses buffered I/O for both reading and writing to improve performance.
+/// It processes the input in 4KB chunks and maintains an output buffer of the same size.
+///
+/// # Arguments
+///
+/// * `config` - A reference to `CompressConfig` containing the paths for input
+///              (decompressed_data) and output (compressed_data) files
+///
+/// # Returns
+///
+/// * `Result<(), Box<dyn Error>>` - Ok(()) on successful compression, or an error
+///                                  if any I/O operations fail
+///
+/// # Errors
+///
+/// This function may return an error if:
+/// * The input file cannot be opened or read
+/// * The output file cannot be created or written to
+/// * The Huffman tree cannot be built from the frequency map
 pub fn compress(config: &CompressConfig) -> Result<(), Box<dyn Error>> {
     // Create all the necessary data structures:
     //  - Load the character frequency map from the input file
@@ -294,6 +475,32 @@ pub fn compress(config: &CompressConfig) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Decompresses a file that was compressed using Huffman encoding.
+///
+/// This function performs the following steps:
+/// 1. Reads the Huffman header containing character frequencies
+/// 2. Reconstructs the Huffman tree from the frequency map
+/// 3. Processes the compressed data bit by bit, traversing the Huffman tree
+/// 4. Writes the decoded bytes to the output file
+///
+/// # Arguments
+///
+/// * `config` - A reference to `DecompressConfig` containing the paths for input
+///              (compressed_data) and output (decompressed_data) files
+///
+/// # Returns
+///
+/// * `Result<(), Box<dyn Error>>` - Ok(()) on successful decompression, or an error
+///                                  if any operation fails
+///
+/// # Errors
+///
+/// This function may return an error if:
+/// * The input file cannot be opened or read
+/// * The output file cannot be created or written to
+/// * The Huffman header is invalid or corrupted
+/// * The compressed data is truncated or corrupted
+/// * The Huffman tree cannot be reconstructed from the frequency map
 pub fn decompress(config: &DecompressConfig) -> Result<(), Box<dyn Error>> {
     let mut input_file = File::open(&config.compressed_data)?;
     let char_frequency_map = read_huffman_header(&mut input_file)?;
