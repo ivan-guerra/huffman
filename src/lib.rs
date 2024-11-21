@@ -984,4 +984,109 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn compress_returns_error_on_empty_file() {
+        let dir = testdir!();
+        let input_path = dir.join("empty.txt");
+        let output_path = dir.join("empty.bin");
+
+        fs::write(&input_path, "").unwrap();
+
+        let config = CompressConfig {
+            decompressed_data: input_path,
+            compressed_data: output_path.clone(),
+        };
+
+        // Empty files should result in an error
+        assert!(compress(&config).is_err());
+    }
+
+    #[test]
+    fn compress_single_char() -> Result<(), Box<dyn Error>> {
+        let dir = testdir!();
+        let input_path = dir.join("single.txt");
+        let output_path = dir.join("single.bin");
+
+        fs::write(&input_path, "a")?;
+
+        let config = CompressConfig {
+            decompressed_data: input_path.clone(),
+            compressed_data: output_path.clone(),
+        };
+
+        compress(&config)?;
+
+        let original_size = fs::metadata(&input_path)?.len();
+        let compressed_size = fs::metadata(&output_path)?.len();
+        assert!(compressed_size > original_size); // Due to header overhead
+        Ok(())
+    }
+
+    #[test]
+    fn compress_single_char_repeated() -> Result<(), Box<dyn Error>> {
+        let dir = testdir!();
+        let input_path = dir.join("repeated.txt");
+        let output_path = dir.join("repeated.bin");
+
+        fs::write(&input_path, "aaaaaaaaaaaaaaaaaaaa")?; // 20 'a's
+
+        let config = CompressConfig {
+            decompressed_data: input_path.clone(),
+            compressed_data: output_path.clone(),
+        };
+
+        compress(&config)?;
+
+        let original_size = fs::metadata(&input_path)?.len();
+        let compressed_size = fs::metadata(&output_path)?.len();
+        assert!(compressed_size < original_size); // Should compress well
+        Ok(())
+    }
+
+    #[test]
+    fn compress_varied_content() -> Result<(), Box<dyn Error>> {
+        let dir = testdir!();
+        let input_path = dir.join("varied.txt");
+        let output_path = dir.join("varied.bin");
+
+        // Create a file with varied content
+        let mut file = fs::File::create(&input_path)?;
+        for i in 0u8..=255 {
+            file.write_all(&[i])?;
+        }
+
+        let config = CompressConfig {
+            decompressed_data: input_path,
+            compressed_data: output_path.clone(),
+        };
+
+        compress(&config)?;
+
+        // Verify the compressed file exists and has content
+        assert!(output_path.exists());
+        assert!(fs::metadata(&output_path)?.len() > 0);
+        Ok(())
+    }
+
+    #[test]
+    fn compress_with_large_buffer_boundary() -> Result<(), Box<dyn Error>> {
+        let dir = testdir!();
+        let input_path = dir.join("large.txt");
+        let output_path = dir.join("large.bin");
+
+        // Create a file slightly larger than the buffer size (4096 bytes)
+        let data = vec![b'a'; 5000];
+        fs::write(&input_path, data)?;
+
+        let config = CompressConfig {
+            decompressed_data: input_path,
+            compressed_data: output_path.clone(),
+        };
+
+        compress(&config)?;
+
+        assert!(output_path.exists());
+        Ok(())
+    }
 }
