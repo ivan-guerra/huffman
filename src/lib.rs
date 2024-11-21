@@ -354,6 +354,7 @@ pub fn decompress(config: &DecompressConfig) -> Result<(), Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
     use std::fs;
     use std::io::Cursor;
     use testdir::testdir;
@@ -454,6 +455,119 @@ mod tests {
             };
         assert_eq!(higher_freq_node.byte, Some(b'a'));
         assert_eq!(higher_freq_node.frequency, 5);
+    }
+
+    #[test]
+    fn build_codebook_from_single_node_tree() {
+        let leaf = HuffmanNode {
+            frequency: 1,
+            byte: Some(b'A'),
+            left: None,
+            right: None,
+        };
+        let mut codebook = HashMap::new();
+        build_codebook(&leaf, &mut codebook, BitVec::new());
+
+        assert_eq!(codebook.len(), 1);
+        assert!(codebook.contains_key(&b'A'));
+        assert_eq!(codebook[&b'A'].len(), 0); // Single node should have empty encoding
+    }
+
+    #[test]
+    fn build_codebook_from_multiple_nodes() {
+        let tree = HuffmanNode {
+            frequency: 2,
+            byte: None,
+            left: Some(Box::new(HuffmanNode::new(Some(b'A'), 1, None, None))),
+            right: Some(Box::new(HuffmanNode::new(Some(b'B'), 1, None, None))),
+        };
+        let mut codebook = HashMap::new();
+        build_codebook(&tree, &mut codebook, BitVec::new());
+
+        assert_eq!(codebook.len(), 2);
+        assert!(codebook.contains_key(&b'A'));
+        assert!(codebook.contains_key(&b'B'));
+        assert_ne!(codebook[&b'A'], codebook[&b'B']);
+    }
+
+    #[test]
+    fn build_codebook_produces_unique_codes() {
+        // Create a more complex tree
+        let tree = HuffmanNode {
+            frequency: 4,
+            byte: None,
+            left: Some(Box::new(HuffmanNode {
+                frequency: 2,
+                byte: None,
+                left: Some(Box::new(HuffmanNode::new(Some(b'A'), 1, None, None))),
+                right: Some(Box::new(HuffmanNode::new(Some(b'B'), 1, None, None))),
+            })),
+            right: Some(Box::new(HuffmanNode {
+                frequency: 2,
+                byte: None,
+                left: Some(Box::new(HuffmanNode::new(Some(b'C'), 1, None, None))),
+                right: Some(Box::new(HuffmanNode::new(Some(b'D'), 1, None, None))),
+            })),
+        };
+
+        let mut codebook = HashMap::new();
+        build_codebook(&tree, &mut codebook, BitVec::new());
+
+        // Check all characters are present
+        assert_eq!(codebook.len(), 4);
+        assert!(codebook.contains_key(&b'A'));
+        assert!(codebook.contains_key(&b'B'));
+        assert!(codebook.contains_key(&b'C'));
+        assert!(codebook.contains_key(&b'D'));
+
+        // Check all codes are unique
+        let mut seen_codes = HashSet::new();
+        for code in codebook.values() {
+            assert!(seen_codes.insert(code.clone()), "duplicate code found");
+        }
+
+        // Check code lengths
+        for code in codebook.values() {
+            assert_eq!(
+                code.len(),
+                2,
+                "all codes should be 2 bits long in this balanced tree"
+            );
+        }
+    }
+
+    #[test]
+    fn build_codebook_with_nodes_of_same_freq_but_different_bytes() {
+        // Create a tree where two nodes have the same frequency
+        let left = HuffmanNode::new(Some(b'E'), 1, None, None);
+        let right = HuffmanNode::new(Some(b'Q'), 1, None, None);
+        let tree = HuffmanNode {
+            frequency: 2,
+            byte: None,
+            left: Some(Box::new(left)),
+            right: Some(Box::new(right)),
+        };
+
+        let mut codebook = HashMap::new();
+        build_codebook(&tree, &mut codebook, BitVec::new());
+
+        // Check that E and Q got different encodings
+        assert_ne!(
+            codebook[&b'E'], codebook[&b'Q'],
+            "characters with same frequency should have different encodings"
+        );
+    }
+
+    #[test]
+    fn build_codebook_from_empty_tree() {
+        let tree = HuffmanNode::new(None, 0, None, None);
+        let mut codebook = HashMap::new();
+        build_codebook(&tree, &mut codebook, BitVec::new());
+
+        assert!(
+            codebook.is_empty(),
+            "Codebook should be empty for empty tree"
+        );
     }
 
     #[test]
